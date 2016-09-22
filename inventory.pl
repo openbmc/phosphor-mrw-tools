@@ -75,6 +75,15 @@ foreach $target (sort keys %{ $targetObj->getAllTargets() })
 
 }
 
+#Hardcode the entries that will never be in the MRW
+#TODO: openbmc/openbmc#596 Remove when BIOS version is stored elsewhere.
+$inventory{'<inventory_root>/system/bios'} =
+    {is_fru => 1, fru_type => 'SYSTEM'};
+
+#TODO: openbmc/openbmc#597 Remove when misc FRU data is stored elsewhere.
+$inventory{'<inventory_root>/system/misc'} =
+    {is_fru => 0, fru_type => 'SYSTEM'};
+
 transform(\@items, \%inventory);
 
 #Encode in JSON and write it out
