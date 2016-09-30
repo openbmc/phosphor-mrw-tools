@@ -44,16 +44,20 @@ printIncludes($f, 0);
 printRootNodeStart($f);
 
 printPropertyList($f, 1, "model", getSystemBMCModel());
-
 printPropertyList($f, 1, "compatible", getBMCCompatibles());
+
 printNode($f, 1, "chosen", getChosen());
 printNode($f, 1, "memory", getMemory($g_bmc));
 
-#TODO: LEDs, UART, I2C, aliases, pinctlr
+printNodes($f, 1, getSpiFlashNodes());
+
+printNode($f, 1, "leds", getLEDNode());
+
 printRootNodeEnd($f, 0);
 
+#TODO: I2C, aliases, pinctlr
 printNodes($f, 0, getMacNodes());
-
+printNodes($f, 0, getUARTNodes());
 printNodes($f, 0, getVuartNodes());
 
 close $f;
@@ -62,6 +66,11 @@ exit 0;
 
 
 #Return a hash that represents the 'chosen' node
+#Will look like:
+#   chosen {
+#      stdout-path = ...
+#      bootargs = ...
+#   }
 sub getChosen()
 {
     my $bmcStdOut = $g_targetObj->getAttributeField($g_bmc, "BMC_DT_CHOSEN",
@@ -75,50 +84,368 @@ sub getChosen()
 }
 
 
-#Returns a list of hashes that represent the MAC (ethernet) nodes on the BMC
-sub getMacNodes()
+#Gets the nodes that represents the BMC's SPI flash chips.  They're based
+#on information from the spi-master-unit end of the connection, with
+#a subnode of information from the destination chip.
+#Will look like:
+#   ahb {
+#     fmc@... {
+#       reg = ...
+#       #address-cells = ...
+#       #size-cells = ...
+#       #compatible = ...
+#
+#       flash@... {
+#          reg = ...
+#          compatible = ...
+#          label = ...
+# #include ...
+#       }
+#     }
+#     spi@... {
+#     ...
+#     }
+#   }
+sub getSpiFlashNodes()
 {
-    my @nodes;
-    my $children = $g_targetObj->getTargetChildren($g_bmc);
+    my %parentNode, my %node, my @nodes;
+    my $lastParentNodeName = "default";
+    my $parentNodeName = "ahb";
 
-    #The next version of this will look for ethernet connections in the
-    #MRW instead of just the units...
-    foreach my $c (@$children) {
+    my $connections = findConnections($g_bmc, "SPI", "FLASH");
+    if ($connections eq "") {
+        print "WARNING:  No SPI flashes found connected to the BMC\n";
+        return @nodes;
+    }
 
-        if ($g_targetObj->getTargetType($c) eq "unit-ethernet-master") {
+    foreach my $spi (@{$connections->{CONN}}) {
 
-            if ($g_targetObj->getAttribute($c, "UNIT_ENABLED") == 1) {
-                my %node;
-                my $num = $g_targetObj->getAttribute($c, "CHIP_UNIT");
-                my $ncsi = $g_targetObj->getAttribute($c, "NCSI_MODE");
-                my $hwChecksum = $g_targetObj->getAttribute($c,
-                                                          "USE_HW_CHECKSUM");
+        my %unitNode; #Node for the SPI master unit
+        my %flashNode; #subnode for the flash chip itself
+        my $flashNodeName = "flash";
+        my $nodeLabel = "";
+        my @addresses;
 
-                my $name = "mac$num";
-                $node{$name}{status} = "okay";
-                if ($ncsi == 1) {
-                    $node{$name}{"use-ncsi"} = STANDALONE_PROPERTY;
-                }
-                if ($hwChecksum == 0) {
-                    $node{$name}{"no-hw-checksum"} = STANDALONE_PROPERTY;
-                }
 
-                push @nodes, { %node };
+        #Adds a comment into the output file about the MRW connection
+        #that makes up this node.  Not that {SOURCE} always represents
+        #the master unit, and DEST_PARENT represents the destination
+        #chip.  The destination unit {DEST} isn't usually that interesting.
+        $unitNode{COMMENT} = "$spi->{SOURCE} ->\n$spi->{DEST_PARENT}";
+
+        #These flashes are nested in the 'ahb' (an internal chip bus)
+        #node in ASPEED chips.  Get the name of it here.
+        if (!$g_targetObj->isBadAttribute($spi->{SOURCE},
+                                        "INTERNAL_BUS", "NA")) {
+            $parentNodeName = $g_targetObj->getAttribute($spi->{SOURCE},
+                                                       "INTERNAL_BUS");
+            if ($parentNodeName != $lastParentNodeName) {
+                print "WARNING: SPI master unit $spi->{SOURCE} has a " .
+                      "different internal bus name $parentNodeName than " .
+                      "previous name $lastParentNodeName\n";
+            }
+            else {
+                $lastParentNodeName = $parentNodeName;
             }
         }
+
+        #The reg base and size of the unit will be added into
+        #the reg property
+        my $regBase = $g_targetObj->getAttribute($spi->{SOURCE},
+                                               "BMC_DT_REG_BASE");
+        my $regSize = $g_targetObj->getAttribute($spi->{SOURCE},
+                                               "BMC_DT_REG_SIZE");
+
+        #There is also another memory range that goes into reg
+        my %sourceRegHash = getMemory($spi->{SOURCE});
+
+        #Insert the regBase and regSize to the memory < ... > property
+        $unitNode{reg} = "< $regBase $regSize " . substr($sourceRegHash{reg}, 2);
+
+        #usually, this will be something like 'smc' or 'spi'
+        my $nodeName = "spi";
+        if (!$g_targetObj->isBadAttribute($spi->{SOURCE},
+                                        "BMC_DT_NODE_NAME")) {
+            $nodeName = $g_targetObj->getAttribute($spi->{SOURCE},
+                                                 "BMC_DT_NODE_NAME");
+        }
+        else {
+            print "WARNING: No BMC_DT_NODE_NAME attribute value found for " .
+                  "SPI flash unit $spi->{SOURCE}. Using 'spi'\n";
+        }
+
+        #now turn it into something like fmc@...
+        $nodeName .= "@".$regBase;
+
+        if (!$g_targetObj->isBadAttribute($spi->{SOURCE},
+                                        "BMC_DT_COMPATIBLE")) {
+            $unitNode{compatible} = $g_targetObj->
+                    getAttribute($spi->{SOURCE}, "BMC_DT_COMPATIBLE");
+        }
+        else {
+            print "WARNING: No BMC_DT_COMPATIBLE attribute found for SPI " .
+                  "flash unit $spi->{SOURCE}\n";
+        }
+
+        #The flash chip has its one reg property as well
+        if (!$g_targetObj->isBadAttribute($spi->{DEST_PARENT},
+                                        "BMC_DT_REG_PROPERTY")) {
+            $flashNode{reg} = $g_targetObj->getAttribute($spi->{DEST_PARENT},
+                                                       "BMC_DT_REG_PROPERTY");
+            $flashNode{reg} = "<" . $flashNode{reg} . ">";
+        }
+        else {
+            print "WARNING: No BMC_REG_PROPERTY attribute found for SPI " .
+                  "flash $spi->{DEST_PARENT}.  Using <0>.\n";
+            $flashNode{reg} = "<0>";
+        }
+
+        if (!$g_targetObj->isBadAttribute($spi->{DEST_PARENT},
+                                        "BMC_DT_COMPATIBLE")) {
+            $flashNode{compatible} = $g_targetObj->
+                    getAttribute($spi->{DEST_PARENT}, "BMC_DT_COMPATIBLE");
+        }
+        else {
+            print "WARNING: No BMC_DT_COMPATIBLE attribute found for SPI " .
+                  "flash $spi->{DEST_PARENT}\n";
+        }
+
+        if (!$g_targetObj->isBadAttribute($spi->{DEST_PARENT},
+                                        "BMC_DT_LABEL_PROPERTY")) {
+            $flashNode{label} = $g_targetObj->
+                    getAttribute($spi->{DEST_PARENT}, "BMC_DT_LABEL_PROPERTY");
+        }
+
+        #Some flash chips have a .dtsi include to pull in more properties.
+        #Future - contents of the includes could be pulled into the MRW
+        #as new attributes.
+        if (!$g_targetObj->isBadAttribute($spi->{DEST_PARENT},
+                                        "BMC_DT_INCLUDES")) {
+            my $incs = $g_targetObj->
+                    getAttribute($spi->{DEST_PARENT}, "BMC_DT_INCLUDES");
+            #first remove the spaces and NAs
+            $incs =~ s/\s+//g;
+            $incs =~ s/NA,*//g;
+            $flashNode{DTSI_INCLUDE} = $incs;
+        }
+
+        #the flash subnode name also has its reg[0] appended
+        #like flash@...
+        @addresses = split(' ', $flashNode{reg});
+        $addresses[0] =~ s/<//;
+        $addresses[0] =~ s/>//;
+        $flashNodeName .= "@" . $addresses[0];
+        $unitNode{$flashNodeName} = { %flashNode };
+
+        #For now, just support a chip with 1 address value
+        if (scalar @addresses == 1) {
+            $unitNode{'#address-cells'} = "<1>";
+            $unitNode{'#size-cells'} = "<0>";
+        }
+        else {
+            print "WARNING:  Unsupported number of <reg> entries " .
+                  "in flash node $flashNodeName.  #size-cells and " .
+                  "#address-cells won't be filled in for SPI flash " .
+                  "$spi->{DEST_PARENT}!\n";
+        }
+
+        #This node will end up being in an array on the parent node
+        my %node;
+        $node{$nodeName} = { %unitNode };
+        push @nodes, { %node };
     }
+
+    $parentNode{$parentNodeName}{nodes} = [ @nodes ];
+
+    #There is always just one in the array
+    my @finalNodes;
+    push @finalNodes, { %parentNode };
+    return @finalNodes;
+}
+
+
+#Returns a hash that represents the leds node by finding all of the
+#GPIO connections to LEDs.
+#Node will look like:
+#   leds {
+#       <ledname> {
+#          gpios =  &gpio ASPEED_GPIO(x, y) GPIO_ACTIVE_xxx>
+#       };
+#       <another ledname> {
+#       ...
+#   }
+sub getLEDNode()
+{
+    my %leds;
+
+    $leds{compatible} = "gpio-led";
+
+    my $connections = findConnections($g_bmc, "GPIO", "LED");
+
+    if ($connections eq "") {
+        print "WARNING:  No LEDs found connected to the BMC\n";
+        return %leds;
+    }
+
+    foreach my $gpio (@{$connections->{CONN}}) {
+        my %ledNode;
+
+        $ledNode{COMMENT} = "$gpio->{SOURCE} ->\n$gpio->{DEST_PARENT}";
+
+        #The node name will be the simplified LED name
+        my $name = $gpio->{DEST_PARENT};
+        $name =~ s/(-\d+$)//; #remove trailing position
+        $name =~ s/.*\///;    #remove the front of the path
+
+        #Assumes an ASPEED_GPIO driver, worry about other manucturers later
+        my $num = $g_targetObj->getAttribute($gpio->{SOURCE}, "PIN_NUM");
+        my $macro = getAspeedGpioMacro($num);
+
+        #If it's active high or low
+        my $state = $g_targetObj->getAttribute($gpio->{DEST_PARENT}, "ON_STATE");
+        my $activeString = getGpioActiveString($state);
+
+        $ledNode{gpios} = "<&gpio $macro $activeString>";
+
+        $leds{$name} = { %ledNode };
+    }
+
+    return %leds;
+}
+
+
+#Returns a either GPIO_ACTIVE_HIGH or GPIO_ACTIVE_LOW
+#  $val = either a 1 or a 0 for active high or low
+sub getGpioActiveString() {
+    my $val = shift;
+
+    if ($val == 0) {
+       return "GPIO_ACTIVE_LOW";
+    }
+
+    return "GPIO_ACTIVE_HIGH";
+}
+
+
+#Turns a GPIO number into something like ASPEED_GPIO(A, 0) for the
+#ASPEED GPIO numbering scheme A[0-7] -> Z[0-7] and then starts at
+#AA[0-7] after that.
+#  $num = the GPIO number
+sub getAspeedGpioMacro() {
+    my $num = shift;
+    my $char;
+    my $offset = $num % 8;
+    my $block = int($num / 8);
+
+    #If past Z, wraps to AA, AB, etc
+    if ((ord('A') + $block) > ord('Z')) {
+        #how far past Z?
+        $char = $block - (ord('Z') - ord('A'));
+
+        #start back at 'A' again, and convert to a character
+        $char = chr($char + ord('A') - 1);
+
+        #Add in a bonus 'A', to get something like AB
+        $char = "A".$char;
+    }
+    else {
+        $char = ord('A') + $block;
+        $char = chr($char);
+    }
+
+    return "ASPEED_GPIO($char, $offset)";
+}
+
+
+#Returns a list of hashes that represent the UART nodes on the BMC by
+#finding the UART connections.
+#Nodes will look like:
+#  &uartX {
+#     status = "okay"
+#  }
+sub getUARTNodes()
+{
+    my @nodes;
+
+    my $connections = findConnections($g_bmc, "UART");
+
+    if ($connections eq "") {
+        print "WARNING:  No I2C buses found connected to the BMC\n";
+        return @nodes;
+    }
+
+    foreach my $uart (@{$connections->{CONN}}) {
+        my %node;
+
+        my $num = $g_targetObj->getAttribute($uart->{SOURCE}, "CHIP_UNIT");
+        my $name = "uart$num";
+
+        $node{$name}{status} = "okay";
+        $node{$name}{COMMENT} = "$uart->{SOURCE} ->\n$uart->{DEST_PARENT}";
+
+        push @nodes, { %node };
+    }
+
     return @nodes;
 }
 
 
-#Returns a last of hashes that represent the virtual UART nodes
+#Returns a list of hashes that represent the MAC (ethernet) nodes on the BMC
+#by finding the connections of type ETHERNET.
+#Nodes will look like:
+#  &macX {
+#    ...
+#  }
+sub getMacNodes()
+{
+    my @nodes;
+
+    my $connections = findConnections($g_bmc, "ETHERNET");
+
+    if ($connections eq "") {
+        print "WARNING:  No ethernet buses found connected to the BMC\n";
+        return @nodes;
+    }
+
+    foreach my $eth (@{$connections->{CONN}}) {
+        my %node;
+
+        my $num = $g_targetObj->getAttribute($eth->{SOURCE}, "CHIP_UNIT");
+        my $ncsi = $g_targetObj->getAttribute($eth->{SOURCE}, "NCSI_MODE");
+        my $hwChecksum = $g_targetObj->getAttribute($eth->{SOURCE},
+                                                  "USE_HW_CHECKSUM");
+
+        my $name = "mac$num";
+        $node{$name}{status} = "okay";
+
+        if ($ncsi == 1) {
+            $node{$name}{"use-ncsi"} = STANDALONE_PROPERTY;
+        }
+        if ($hwChecksum == 0) {
+            $node{$name}{"no-hw-checksum"} = STANDALONE_PROPERTY;
+        }
+
+        $node{$name}{COMMENT} = "$eth->{SOURCE} ->\n$eth->{DEST_PARENT}";
+
+        push @nodes, { %node };
+    }
+
+    return @nodes;
+}
+
+
+#Returns a list of hashes that represent the virtual UART nodes
+#Node will look like:
+#  &vuart {
+#   status = "okay"
+#  }
 sub getVuartNodes()
 {
     my @nodes;
     my %node;
 
     #For now, enable 1 node all the time.
-    #TODO if this needs to be fixed.
+    #TBD if this needs to be fixed
     $node{vuart}{status} = "okay";
 
     push @nodes, { %node };
@@ -136,7 +463,7 @@ sub getMemory()
     my $memory = $g_targetObj->getAttribute($target, "BMC_DT_MEMORY");
     my @mem = split(',', $memory);
     my %property;
-    my $val = "<";
+    my $val = "< ";
 
     #Encoded as 4 <base address>,<size> pairs of memory ranges
     #Unused ranges are all 0s.
@@ -152,7 +479,7 @@ sub getMemory()
     }
 
     $val =~ s/\s$//;
-    $val .= ">";
+    $val .= " >";
     $property{reg} = $val;
 
     return %property;
@@ -181,7 +508,7 @@ sub getBMCCompatibles()
 #Returns a string for the system's BMC model property
 sub getSystemBMCModel()
 {
-    #<System> BMC
+    #'<System> BMC'
     my $sys = lc $g_systemName;
     $sys = uc(substr($sys, 0, 1)) . substr($sys, 1);
 
@@ -217,13 +544,13 @@ sub printNodes()
 #  %vals = The contents of the node, with the following options:
 #     if the key is:
 #     - 'DTSI_INCLUDE', then value gets turned into a #include
-#     - 'COMMENT', then value gets turned into a // comment (coming soon)
+#     - 'COMMENT', then value gets turned into a // comment
 #     - 'STANDALONE_PROPERTY' then value gets turned into:  value;
 #
 #     If the value is:
 #     - a hash - then that hash gets turned into a child node
 #       where the key is the name of the child node
-#     - an array of hashes indicates an array of nodes (coming soon)
+#     - an array of hashes indicates an array of child nodes
 sub printNode()
 {
     my ($f, $level, $name, %vals) = @_;
@@ -233,9 +560,20 @@ sub printNode()
         $name = "&".$name;
     }
 
-    print $f "\n".indent($level) . "$name {\n";
+    print $f "\n";
+
+    if (exists $vals{COMMENT}) {
+        my @lines = split('\n', $vals{COMMENT});
+        foreach my $l (@lines) {
+            print $f indent($level) . "// $l\n";
+        }
+    }
+
+    print $f indent($level) . "$name {\n";
 
     foreach my $v (sort keys %vals) {
+
+        next if ($v eq "COMMENT");
 
         #A header file include, print it later
         if ($v eq DTSI_INCLUDE) {
@@ -244,6 +582,11 @@ sub printNode()
         #A nested node
         elsif (ref($vals{$v}) eq "HASH") {
             printNode($f, $level+1, $v, %{$vals{$v}});
+        }
+        #An array of nested nodes
+        elsif (ref($vals{$v}) eq "ARRAY") {
+            my @array = @{$vals{$v}};
+            &printNodes($f, $level+1, @array);
         }
         elsif ($vals{$v} ne STANDALONE_PROPERTY) {
             printProperty($f, $level+1, $v, $vals{$v});
@@ -412,6 +755,64 @@ sub printRootNodeEnd() {
 sub indent() {
     my $level = shift;
     return ' ' x ($level * 4);
+}
+
+
+#Will look for all the connections of the specified type coming from
+#any sub target of the specified target, instead of just 1 level down
+#like the Targets inteface does.  Needed because sometimes we have
+#target->pingroup->sourceunit instead of just target->sourceunit
+#  $target = the target to find connections off of
+#  $bus = the bus type
+#  $partType = destination part type, leave off if a don't care
+sub findConnections() {
+    my ($target, $bus, $partType) = @_;
+    my %allConnections;
+    my $i = 0;
+
+    #get the ones from target->child
+    my $connections = $g_targetObj->findConnections($target, $bus, $partType);
+    if ($connections ne "") {
+        foreach my $c (@{$connections->{CONN}}) {
+            $allConnections{CONN}[$i] = { %{$c} };
+            $i++;
+        }
+    }
+
+    #get everything deeper
+    my @children = getAllTargetChildren($target);
+    foreach my $c (@children) {
+        my $connections = $g_targetObj->findConnections($c, $bus, $partType);
+        if ($connections ne "") {
+
+            foreach my $c (@{$connections->{CONN}}) {
+                $allConnections{CONN}[$i] = { %{$c} };
+                $i++;
+            }
+        }
+    }
+
+    return \%allConnections;
+}
+
+#Returns every sub target, not just the 1st level children.
+#  $target = the target to find the children of
+sub getAllTargetChildren()
+{
+    my $target = shift;
+    my @children;
+
+    my $targets = $g_targetObj->getTargetChildren($target);
+    if ($targets ne "") {
+
+        foreach my $t (@$targets) {
+            push @children, $t;
+            my @more = getAllTargetChildren($t);
+            push @children, @more;
+        }
+    }
+
+    return @children;
 }
 
 
