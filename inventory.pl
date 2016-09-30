@@ -118,7 +118,9 @@ sub transform
     renameType("NODE", "SYSTEM", $items);
 
     renameSegmentWithTargetType("card-motherboard", "motherboard", $items);
-    renameTypeWithTargetType("card-motherboard", "MOTHERBOARD", $items);
+    renameTypeWithTargetType("card-motherboard", "MAIN_PLANAR", $items);
+
+    renameType("MEMBUF", "MEMORY_BUFFER", $items);
 
     renameType("FSP", "BMC", $items);
 
