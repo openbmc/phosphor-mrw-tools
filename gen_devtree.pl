@@ -12,6 +12,19 @@ use constant VERSION => "/dts-v1/;";
 use constant STANDALONE_PROPERTY => "standalone_property";
 use constant DTSI_INCLUDE => "DTSI_INCLUDE";
 
+#For validating I2C bus numbers.
+my %I2C_BUS_RANGES = (
+    AST2400 => {min => 1, max => 14},
+    AST2500 => {min => 1, max => 14}
+);
+
+#For converting MRW I2C Bus numbers to Linux relative ones.
+my %I2C_BUS_ADJUST = (
+    AST2400 => -1,
+    AST2500 => -1
+);
+
+
 my $serverwizFile;
 my $outputFile;
 my $debug;
@@ -46,6 +59,7 @@ printRootNodeStart($f);
 printPropertyList($f, 1, "model", getSystemBMCModel());
 printPropertyList($f, 1, "compatible", getBMCCompatibles());
 
+printNode($f, 1, "aliases", getAliases());
 printNode($f, 1, "chosen", getChosen());
 printNode($f, 1, "memory", getMemory($g_bmc));
 
@@ -55,7 +69,7 @@ printNode($f, 1, "leds", getLEDNode());
 
 printRootNodeEnd($f, 0);
 
-#TODO: I2C, aliases, pinctlr
+printNodes($f, 0, getI2CNodes());
 printNodes($f, 0, getMacNodes());
 printNodes($f, 0, getUARTNodes());
 printNodes($f, 0, getVuartNodes());
@@ -63,6 +77,36 @@ printNodes($f, 0, getVuartNodes());
 close $f;
 exit 0;
 
+
+#Returns a hash that represents the 'aliases' node.
+#Will look like:
+#  aliases {
+#    name1 = &val1;
+#    name2 = &val2;
+#    ...
+#  }
+sub getAliases()
+{
+    my %aliases;
+    my $name, my $val;
+
+    #The MRW supports up to 6 name and value pairs.
+    for (my $i = 1; $i <= 6; $i++) {
+        my $nameAttr = "name$i";
+        my $valAttr = "value$i";
+
+        $name = $g_targetObj->getAttributeField($g_bmc, "BMC_DT_ALIASES",
+                                                $nameAttr);
+        if ($name ne "") {
+            $val =  $g_targetObj->getAttributeField($g_bmc, "BMC_DT_ALIASES",
+                                                    $valAttr);
+            #The value will be printed as '&val'
+            $aliases{$name} = "(alias)$val";
+        }
+    }
+
+    return %aliases;
+}
 
 
 #Return a hash that represents the 'chosen' node
@@ -468,6 +512,191 @@ sub getVuartNodes()
     return @nodes;
 }
 
+#Returns a list of hashes that represent the I2C device nodes.
+#There is 1 parent node for each bus, which then have subnodes
+#for each device on that bus.  If a bus doesn't have any
+#attached devices, it doesn't need to show up.
+#The nodes will look like:
+#  &i2c0 {
+#     status = "okay"
+#     device1@addr { (addr = 7 bit I2C address)
+#       reg = <addr>
+#       ...
+#     }
+#     device2@addr {
+#       reg = <addr>
+#       ...
+#     }
+#  }
+#  &i2c1 {
+#  ...
+#  }
+sub getI2CNodes()
+{
+    my @nodes;
+    my %busNodes;
+
+    my $connections = findConnections($g_bmc, "I2C");
+
+    if ($connections eq "") {
+        print "WARNING:  No I2C buses found connected to the BMC\n";
+        return @nodes;
+    }
+
+    foreach my $i2c (@{$connections->{CONN}}) {
+
+        my %deviceNode, my $deviceName;
+
+        $deviceNode{COMMENT} = "$i2c->{SOURCE} ->\n$i2c->{DEST_PARENT}";
+
+        $deviceName = lc $i2c->{DEST_PARENT};
+        $deviceName =~ s/-\d+$//; #remove trailing position
+        $deviceName =~ s/.*\///;  #remove the front of the path
+
+        #Get the I2C address
+        my $i2cAddress = $g_targetObj->getAttribute($i2c->{DEST}, "I2C_ADDRESS");
+        $i2cAddress = hex($i2cAddress);
+        if ($i2cAddress == 0) {
+            die "ERROR: Missing I2C address on $i2c->{DEST}\n";
+        }
+
+        #Put it in the format we want to print it in
+        $i2cAddress = adjustI2CAddress($i2cAddress);
+        $deviceNode{reg} = "<$i2cAddress>";
+
+        #The node name also gets the address, minus the 0x
+        $deviceName = $deviceName."@".$i2cAddress;
+        $deviceName =~ s/@0x/@/;
+
+        #Get the I2C bus number
+        my $busNum = $g_targetObj->getAttribute($i2c->{SOURCE}, "I2C_PORT");
+        if ($busNum =~ /0x/i) {
+            $busNum = hex($busNum);
+        }
+
+        #Make sure the bus number is allowed for this BMC model,
+        #and convert it to the Linux numbering scheme.
+        validateI2CBusNum($busNum, $i2c->{SOURCE});
+        $busNum = adjustI2CBusNum($busNum);
+
+        #Get any other part specific properties
+        my %props = getPartDefinedDTProperties($i2c->{DEST_PARENT});
+        foreach my $prop (sort keys %props) {
+            $deviceNode{$prop} = $props{$prop};
+        }
+
+        #busNodeName is the hash twice so when we loop
+        #below it doesn't get lost
+        my $busNodeName = "i2c$busNum";
+        $busNodes{$busNodeName}{$busNodeName}{status} = "okay";
+        $busNodes{$busNodeName}{$busNodeName}{$deviceName} = { %deviceNode };
+    }
+
+    #Each bus gets its own hash entry in the array
+    for my $b (sort keys %busNodes) {
+        push @nodes, { %{$busNodes{$b}} };
+    }
+
+    return @nodes;
+}
+
+
+#Returns a hash of property names and values that should be stored in
+#the device tree node for this device. The names of the properties and
+#the attributes to find their values in are stored in the
+#BMC_DT_ATTR_NAMES attribute in the chip.
+#  $chip = the chip target
+sub getPartDefinedDTProperties()
+{
+    my $chip = shift;
+    my %props;
+
+    if ($g_targetObj->isBadAttribute($chip, "BMC_DT_ATTR_NAMES")) {
+        return %props;
+    }
+
+    my $attr = $g_targetObj->getAttribute($chip, "BMC_DT_ATTR_NAMES");
+    $attr =~ s/\s//g;
+    my @names = split(',', $attr);
+
+    #There can be up to 4 entries in this attribute
+    for (my $i = 0; $i < 8; $i += 2) {
+
+        #$names[$i] holds the name of the attribute.
+        #$names[$i+1] holds the name of the property to store its value in.
+        if (($names[$i] ne "NA") && ($names[$i] ne "")) {
+
+            my $val = $g_targetObj->getAttribute($chip, $names[$i]);
+
+            #if the value is empty, assume it's for a standalone property,
+            #which gets turned into: some-property;
+            if ($val eq "") {
+                $props{$names[$i+1]} = STANDALONE_PROPERTY;
+            }
+            else {
+                $props{$names[$i+1]} = "<$val>";
+            }
+        }
+    }
+
+    return %props;
+}
+
+
+#Convert the MRW I2C address into the format the dts needs
+#  $addr = the I2C Address
+sub adjustI2CAddress()
+{
+    my $addr = shift;
+
+    #MRW holds the 8 bit value.  We need the 7 bit one.
+    my $addr = $addr >> 1;
+    $addr = sprintf("%X", $addr);
+
+    return $addr;
+}
+
+
+#Validates the I2C Bus for the specific BMC chip model.
+#  $num = I2C Bus number
+sub validateI2CBusNum()
+{
+    my $num = shift;
+    my $source = shift;
+
+    if (exists $I2C_BUS_RANGES{$g_bmcModel}) {
+        my $min = $I2C_BUS_RANGES{$g_bmcModel}{min};
+        my $max = $I2C_BUS_RANGES{$g_bmcModel}{max};
+
+        if (($num < $min) || ($num > $max)) {
+            die "Invalid I2C bus number $num on unit $source\n";
+        }
+    }
+    else {
+        print "WARNING: No I2C bus range checking done for this BMC model\n";
+    }
+}
+
+
+#Converts the I2C Bus number from the one in the MRW/schematics to the
+#kernel based number.  Usually involves subtracting 1.
+#  $num = I2C Bus number from the MRW
+sub adjustI2CBusNum()
+{
+    my $num = shift;
+
+    if (exists $I2C_BUS_ADJUST{$g_bmcModel}) {
+        my $op = $I2C_BUS_ADJUST{$g_bmcModel};
+        $num = $num + $op;
+    }
+    else {
+        print "WARNING: No I2C Bus number adjustment done " .
+              "for this BMC model\n";
+    }
+
+    return $num;
+}
+
 
 #Returns a hash{'reg'} = "<.....>"  based on the
 #BMC_DT_MEMORY attribute.  This is used to display
@@ -506,12 +735,15 @@ sub getBMCCompatibles()
 {
     my @compats;
 
-    #The first one is from the MRW, the next one is more generic
-    #and just <mfgr>-<model>.
+    #1st entry:  <system mfgr>,<system name>-bmc
+    #2nd entry:  <bmc mfgr>,<bmc model>
 
-    if (!$g_targetObj->isBadAttribute($g_bmc, "BMC_DT_COMPATIBLE", "NA")) {
-        my $attr = $g_targetObj->getAttribute($g_bmc, "BMC_DT_COMPATIBLE");
-        push @compats, $attr;
+    foreach my $target (sort keys %{ $g_targetObj->getAllTargets() }) {
+        if ($g_targetObj->getType($target) eq "SYS") {
+           my $mfgr = $g_targetObj->getAttribute($target, "MANUFACTURER");
+           push @compats, lc "$mfgr,$g_systemName-bmc";
+           last;
+        }
     }
 
     push @compats, lc($g_bmcMfgr).",".lc($g_bmcModel);
@@ -653,7 +885,16 @@ sub printPropertyList()
 sub printProperty()
 {
     my ($f, $level, $name, $val) = @_;
-    print $f indent($level) . "$name = \"" . convertAlias($val) . "\";\n";
+    my $quote = "\"";
+
+    $val = convertAlias($val);
+
+    #properties with < > or single word aliases don't need quotes
+    if (($val =~ /<.*>/) || ($val =~ /^&\w+$/)) {
+        $quote = "";
+    }
+
+    print $f indent($level) . "$name = $quote$val$quote;\n";
 }
 
 
@@ -804,6 +1045,11 @@ sub findConnections() {
                 $i++;
             }
         }
+    }
+
+    #Match the Targets::findConnections return strategy
+    if (!keys %allConnections) {
+        return "";
     }
 
     return \%allConnections;
