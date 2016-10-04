@@ -46,6 +46,7 @@ printRootNodeStart($f);
 printPropertyList($f, 1, "model", getSystemBMCModel());
 printPropertyList($f, 1, "compatible", getBMCCompatibles());
 
+printNode($f, 1, "aliases", getAliases());
 printNode($f, 1, "chosen", getChosen());
 printNode($f, 1, "memory", getMemory($g_bmc));
 
@@ -55,7 +56,6 @@ printNode($f, 1, "leds", getLEDNode());
 
 printRootNodeEnd($f, 0);
 
-#TODO: I2C, aliases, pinctlr
 printNodes($f, 0, getMacNodes());
 printNodes($f, 0, getUARTNodes());
 printNodes($f, 0, getVuartNodes());
@@ -63,6 +63,36 @@ printNodes($f, 0, getVuartNodes());
 close $f;
 exit 0;
 
+
+#Returns a hash that represents the 'aliases' node.
+#Will look like:
+#  aliases {
+#    name1 = &val1;
+#    name2 = &val2;
+#    ...
+#  }
+sub getAliases()
+{
+    my %aliases;
+    my $name, my $val;
+
+    #The MRW supports up to 6 name and value pairs.
+    for (my $i = 1; $i <= 6; $i++) {
+        my $nameAttr = "name$i";
+        my $valAttr = "value$i";
+
+        $name = $g_targetObj->getAttributeField($g_bmc, "BMC_DT_ALIASES",
+                                                $nameAttr);
+        if ($name ne "") {
+            $val =  $g_targetObj->getAttributeField($g_bmc, "BMC_DT_ALIASES",
+                                                    $valAttr);
+            #The value will be printed as '&val'
+            $aliases{$name} = "(alias)$val";
+        }
+    }
+
+    return %aliases;
+}
 
 
 #Return a hash that represents the 'chosen' node
@@ -183,6 +213,7 @@ sub getSpiFlashNodes()
         }
 
         #now turn it into something like fmc@...
+        $regBase =~ s/^0x//;
         $nodeName .= "@".$regBase;
 
         if (!$g_targetObj->isBadAttribute($spi->{SOURCE},
@@ -382,7 +413,8 @@ sub getUARTNodes()
 {
     my @nodes;
 
-    my $connections = findConnections($g_bmc, "UART");
+    #Using U750 for legacy MRW reasons
+    my $connections = findConnections($g_bmc, "U750");
 
     if ($connections eq "") {
         print "WARNING:  No UART buses found connected to the BMC\n";
@@ -506,12 +538,15 @@ sub getBMCCompatibles()
 {
     my @compats;
 
-    #The first one is from the MRW, the next one is more generic
-    #and just <mfgr>-<model>.
+    #1st entry:  <system mfgr>,<system name>-bmc
+    #2nd entry:  <bmc mfgr>,<bmc model>
 
-    if (!$g_targetObj->isBadAttribute($g_bmc, "BMC_DT_COMPATIBLE", "NA")) {
-        my $attr = $g_targetObj->getAttribute($g_bmc, "BMC_DT_COMPATIBLE");
-        push @compats, $attr;
+    foreach my $target (sort keys %{ $g_targetObj->getAllTargets() }) {
+        if ($g_targetObj->getType($target) eq "SYS") {
+           my $mfgr = $g_targetObj->getAttribute($target, "MANUFACTURER");
+           push @compats, lc "$mfgr,$g_systemName-bmc";
+           last;
+        }
     }
 
     push @compats, lc($g_bmcMfgr).",".lc($g_bmcModel);
@@ -653,7 +688,16 @@ sub printPropertyList()
 sub printProperty()
 {
     my ($f, $level, $name, $val) = @_;
-    print $f indent($level) . "$name = \"" . convertAlias($val) . "\";\n";
+    my $quote = "\"";
+
+    $val = convertAlias($val);
+
+    #properties with < > or single word aliases don't need quotes
+    if (($val =~ /<.*>/) || ($val =~ /^&\w+$/)) {
+        $quote = "";
+    }
+
+    print $f indent($level) . "$name = $quote$val$quote;\n";
 }
 
 
@@ -804,6 +848,11 @@ sub findConnections() {
                 $i++;
             }
         }
+    }
+
+    #Match the Targets::findConnections return strategy
+    if (!keys %allConnections) {
+        return "";
     }
 
     return \%allConnections;
