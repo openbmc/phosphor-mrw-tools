@@ -9,8 +9,14 @@ use mrw::Targets;
 use Getopt::Long;
 
 use constant VERSION => "/dts-v1/;";
-use constant STANDALONE_PROPERTY => "standalone_property";
-use constant DTSI_INCLUDE => "DTSI_INCLUDE";
+use constant ZERO_LENGTH_PROPERTY => "zero_length_property";
+
+#For converting MRW I2C Bus numbers to Linux relative ones.
+my %I2C_BUS_ADJUST = (
+    AST2400 => -1,
+    AST2500 => -1
+);
+
 
 my $serverwizFile;
 my $outputFile;
@@ -28,14 +34,9 @@ if ((not defined $serverwizFile) || (not defined $outputFile)) {
 my $g_targetObj = Targets->new;
 $g_targetObj->loadXML($serverwizFile);
 
-my $g_bmc = getBMCTarget();
-if (length($g_bmc) == 0) {
-    die "Unable to find a BMC in this system\n";
-}
+my ($g_bmc, $g_bmcModel, $g_bmcMfgr, $g_systemName);
+setGlobalAttributes();
 
-my $g_bmcModel = $g_targetObj->getAttribute($g_bmc, "MODEL");
-my $g_bmcMfgr = $g_targetObj->getAttribute($g_bmc, "MANUFACTURER");
-my $g_systemName = $g_targetObj->getSystemName();
 
 open (my $f, ">$outputFile") or die "Could not open $outputFile\n";
 
@@ -56,12 +57,39 @@ printNode($f, 1, "leds", getLEDNode());
 
 printRootNodeEnd($f, 0);
 
+printNodes($f, 0, getI2CNodes());
 printNodes($f, 0, getMacNodes());
 printNodes($f, 0, getUARTNodes());
 printNodes($f, 0, getVuartNodes());
 
 close $f;
 exit 0;
+
+
+#Finds the values for these globals:
+# $g_bmc, $g_bmcModel, $g_bmcMfgr, $g_systemName
+sub setGlobalAttributes()
+{
+    $g_bmc = getBMCTarget();
+    if (length($g_bmc) == 0) {
+        die "Unable to find a BMC in this system\n";
+    }
+
+    if ($g_targetObj->isBadAttribute($g_bmc, "MODEL")) {
+        die "The MODEL attribute on $g_bmc is missing or empty.\n";
+    }
+    $g_bmcModel = $g_targetObj->getAttribute($g_bmc, "MODEL");
+
+    if ($g_targetObj->isBadAttribute($g_bmc, "MANUFACTURER")) {
+        die "The MANUFACTURER attribute on $g_bmc is missing or empty.\n";
+    }
+    $g_bmcMfgr = $g_targetObj->getAttribute($g_bmc, "MANUFACTURER");
+
+    $g_systemName = $g_targetObj->getSystemName();
+    if (length($g_systemName) == 0) {
+        die "The SYSTEM_NAME attribute is not set on the system target.\n";
+    }
+}
 
 
 #Returns a hash that represents the 'aliases' node.
@@ -466,10 +494,10 @@ sub getMacNodes()
         $node{$name}{status} = "okay";
 
         if ($ncsi == 1) {
-            $node{$name}{"use-ncsi"} = STANDALONE_PROPERTY;
+            $node{$name}{"use-ncsi"} = ZERO_LENGTH_PROPERTY;
         }
         if ($hwChecksum == 0) {
-            $node{$name}{"no-hw-checksum"} = STANDALONE_PROPERTY;
+            $node{$name}{"no-hw-checksum"} = ZERO_LENGTH_PROPERTY;
         }
 
         $node{$name}{COMMENT} = "$eth->{SOURCE} ->\n$eth->{DEST_PARENT}";
@@ -498,6 +526,186 @@ sub getVuartNodes()
     push @nodes, { %node };
 
     return @nodes;
+}
+
+#Returns a list of hashes that represent the I2C device nodes.
+#There is 1 parent node for each bus, which then have subnodes
+#for each device on that bus.  If a bus doesn't have any
+#attached devices, it doesn't need to show up.
+#The nodes will look like:
+#  &i2c0 {
+#     status = "okay"
+#     device1@addr { (addr = 7 bit I2C address)
+#       reg = <addr>
+#       compatible = ...
+#       ...
+#     }
+#     device2@addr {
+#       reg = <addr>
+#       ...
+#     }
+#  }
+#  &i2c1 {
+#  ...
+#  }
+sub getI2CNodes()
+{
+    my @nodes;
+    my %busNodes;
+
+    my $connections = findConnections($g_bmc, "I2C");
+
+    if ($connections eq "") {
+        print "WARNING:  No I2C buses found connected to the BMC\n";
+        return @nodes;
+    }
+
+    foreach my $i2c (@{$connections->{CONN}}) {
+
+        my %deviceNode, my $deviceName;
+
+        $deviceNode{COMMENT} = "$i2c->{SOURCE} ->\n$i2c->{DEST_PARENT}";
+
+        $deviceName = lc $i2c->{DEST_PARENT};
+        $deviceName =~ s/-\d+$//; #remove trailing position
+        $deviceName =~ s/.*\///;  #remove the front of the path
+
+        #Get the I2C address
+        my $i2cAddress = $g_targetObj->getAttribute($i2c->{DEST}, "I2C_ADDRESS");
+        $i2cAddress = hex($i2cAddress);
+        if ($i2cAddress == 0) {
+            die "ERROR: Missing I2C address on $i2c->{DEST}\n";
+        }
+
+        #Put it in the format we want to print it in
+        $i2cAddress = adjustI2CAddress($i2cAddress);
+        $deviceNode{reg} = "<$i2cAddress>";
+
+        $deviceName = makeNodeName($deviceName, $deviceNode{reg});
+
+        #Get the I2C bus number
+        if ($g_targetObj->isBadAttribute($i2c->{SOURCE},
+                                         "I2C_PORT")) {
+            die "ERROR: I2C_PORT attribute in $i2c->{DEST_PARENT} " .
+                "is either missing or empty.\n";
+        }
+
+        my $busNum = $g_targetObj->getAttribute($i2c->{SOURCE}, "I2C_PORT");
+        if ($busNum =~ /0x/i) {
+            $busNum = hex($busNum);
+        }
+
+        #Convert the number to the Linux numbering scheme.
+        $busNum = adjustI2CBusNum($busNum);
+
+        #Get the compatible property
+        if ($g_targetObj->isBadAttribute($i2c->{DEST_PARENT},
+                                         "BMC_DT_COMPATIBLE")) {
+            die "ERROR: BMC_DT_COMPATIBLE attribute in $i2c->{DEST_PARENT} " .
+                "is either missing or empty.\n";
+        }
+
+        $deviceNode{compatible} = $g_targetObj->getAttribute(
+                                                    $i2c->{DEST_PARENT},
+                                                    "BMC_DT_COMPATIBLE");
+
+        #Get any other part specific properties, where the property
+        #names are actually defined in the XML.
+        my %props = getPartDefinedDTProperties($i2c->{DEST_PARENT});
+        foreach my $prop (sort keys %props) {
+            $deviceNode{$prop} = $props{$prop};
+        }
+
+        #busNodeName is the hash twice so when we loop
+        #below it doesn't get lost
+        my $busNodeName = "i2c$busNum";
+        $busNodes{$busNodeName}{$busNodeName}{status} = "okay";
+        $busNodes{$busNodeName}{$busNodeName}{$deviceName} = { %deviceNode };
+    }
+
+    #Each bus gets its own hash entry in the array
+    for my $b (sort keys %busNodes) {
+        push @nodes, { %{$busNodes{$b}} };
+    }
+
+    return @nodes;
+}
+
+
+#Returns a hash of property names and values that should be stored in
+#the device tree node for this device. The names of the properties and
+#the attributes to find their values in are stored in the
+#BMC_DT_ATTR_NAMES attribute in the chip.
+#  $chip = the chip target
+sub getPartDefinedDTProperties()
+{
+    my $chip = shift;
+    my %props;
+
+    if ($g_targetObj->isBadAttribute($chip, "BMC_DT_ATTR_NAMES")) {
+        return %props;
+    }
+
+    my $attr = $g_targetObj->getAttribute($chip, "BMC_DT_ATTR_NAMES");
+    $attr =~ s/\s//g;
+    my @names = split(',', $attr);
+
+    #There can be up to 4 entries in this attribute
+    for (my $i = 0; $i < scalar @names; $i += 2) {
+
+        #$names[$i] holds the name of the attribute.
+        #$names[$i+1] holds the name of the property to store its value in.
+        if (($names[$i] ne "NA") && ($names[$i] ne "")) {
+
+            my $val = $g_targetObj->getAttribute($chip, $names[$i]);
+
+            #if the value is empty, assume it's for a standalone property,
+            #which gets turned into: some-property;
+            if ($val eq "") {
+                $props{$names[$i+1]} = ZERO_LENGTH_PROPERTY;
+            }
+            else {
+                $props{$names[$i+1]} = "<$val>";
+            }
+        }
+    }
+
+    return %props;
+}
+
+
+#Convert the MRW I2C address into the format the dts needs
+#  $addr = the I2C Address
+sub adjustI2CAddress()
+{
+    my $addr = shift;
+
+    #MRW holds the 8 bit value.  We need the 7 bit one.
+    my $addr = $addr >> 1;
+    $addr = sprintf("0x%X", $addr);
+    $addr = lc $addr;
+
+    return $addr;
+}
+
+
+#Converts the I2C Bus number from the one in the MRW/schematics to the
+#kernel based number.  Usually involves subtracting 1.
+#  $num = I2C Bus number from the MRW
+sub adjustI2CBusNum()
+{
+    my $num = shift;
+
+    if (exists $I2C_BUS_ADJUST{$g_bmcModel}) {
+        my $op = $I2C_BUS_ADJUST{$g_bmcModel};
+        $num = $num + $op;
+    }
+    else {
+        print "WARNING: No I2C Bus number adjustment done " .
+              "for this BMC model\n";
+    }
+
+    return $num;
 }
 
 
@@ -595,7 +803,7 @@ sub printNodes()
 #     if the key is:
 #     - 'DTSI_INCLUDE', then value gets turned into a #include
 #     - 'COMMENT', then value gets turned into a // comment
-#     - 'STANDALONE_PROPERTY' then value gets turned into:  value;
+#     - 'ZERO_LENGTH_PROPERTY' then value gets turned into:  value;
 #
 #     If the value is:
 #     - a hash - then that hash gets turned into a child node
@@ -621,36 +829,46 @@ sub printNode()
 
     print $f indent($level) . "$name {\n";
 
+    #First print properties, then includes, then subnodes
+
+    #Print Properties
     foreach my $v (sort keys %vals) {
 
         next if ($v eq "COMMENT");
+        next if ($v eq "DTSI_INCLUDE");
+        next if (ref($vals{$v}) eq "HASH");
+        next if (ref($vals{$v}) eq "ARRAY");
 
-        #A header file include, print it later
-        if ($v eq DTSI_INCLUDE) {
-            $include = $vals{$v};
+        if ($vals{$v} ne ZERO_LENGTH_PROPERTY) {
+            printProperty($f, $level+1, $v, $vals{$v});
         }
-        #A nested node
-        elsif (ref($vals{$v}) eq "HASH") {
+        else {
+            printZeroLengthProperty($f, $level+1, $v);
+        }
+    }
+
+    #Print Includes
+    foreach my $v (sort keys %vals) {
+
+        if ($v eq "DTSI_INCLUDE") {
+            #print 1 include per line
+            my @incs = split(',', $vals{$v});
+            foreach my $i (@incs) {
+                print $f qq(#include "$i";\n);
+            }
+        }
+    }
+
+    #Print Nodes
+    foreach my $v (sort keys %vals) {
+
+        if (ref($vals{$v}) eq "HASH") {
             printNode($f, $level+1, $v, %{$vals{$v}});
         }
         #An array of nested nodes
         elsif (ref($vals{$v}) eq "ARRAY") {
             my @array = @{$vals{$v}};
             &printNodes($f, $level+1, @array);
-        }
-        elsif ($vals{$v} ne STANDALONE_PROPERTY) {
-            printProperty($f, $level+1, $v, $vals{$v});
-        }
-        else {
-            printStandaloneProperty($f, $level+1, $v);
-        }
-    }
-
-    #Now print the includes, if any.
-    if ($include ne "") {
-        my @incs = split(',', $include);
-        foreach my $i (@incs) {
-            print $f "#include \"$i\";\n";
         }
     }
 
@@ -787,6 +1005,27 @@ sub getIncludes()
     }
 
     return @includes;
+}
+
+#Appends the first value of the 'reg' property
+#passed in to the name passed in to create the
+#full name for the node
+#  $name = node name that will be appended to
+#  $reg = the reg property values
+sub makeNodeName()
+{
+    my ($name, $reg) = @_;
+
+    $reg =~ s/<//g;
+    $reg =~ s/>//g;
+    my @vals = split(' ', $reg);
+
+    if (scalar @vals > 0) {
+        $vals[0] =~ s/0x//;
+        $name .= "@" . lc $vals[0];
+    }
+
+    return $name;
 }
 
 
