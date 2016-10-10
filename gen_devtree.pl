@@ -7,9 +7,16 @@ use strict;
 use XML::Simple;
 use mrw::Targets;
 use Getopt::Long;
+use YAML::Tiny qw(LoadFile);
+use Data::Dumper;
 
-use constant VERSION => "/dts-v1/;";
-use constant ZERO_LENGTH_PROPERTY => "zero_length_property";
+use constant {
+    VERSION => "/dts-v1/;",
+    ZERO_LENGTH_PROPERTY => "zero_length_property",
+    PRE_ROOT_INCLUDES => "pre-root-node",
+    ROOT_INCLUDES => "root-node",
+    POST_ROOT_INCLUDES => "post-root-node"
+};
 
 #For converting MRW I2C Bus numbers to Linux relative ones.
 my %I2C_BUS_ADJUST = (
@@ -19,17 +26,22 @@ my %I2C_BUS_ADJUST = (
 
 
 my $serverwizFile;
+my $configFile;
 my $outputFile;
 my $debug;
 
 GetOptions("x=s" => \$serverwizFile,
+           "y=s" => \$configFile,
            "o=s" => \$outputFile,
            "d" => \$debug)
 or printUsage();
 
-if ((not defined $serverwizFile) || (not defined $outputFile)) {
+if ((not defined $serverwizFile) || (not defined $outputFile) ||
+    (not defined $configFile)) {
     printUsage();
 }
+
+my %g_configuration = %{ LoadFile($configFile) };
 
 my $g_targetObj = Targets->new;
 $g_targetObj->loadXML($serverwizFile);
@@ -37,11 +49,10 @@ $g_targetObj->loadXML($serverwizFile);
 my ($g_bmc, $g_bmcModel, $g_bmcMfgr, $g_systemName);
 setGlobalAttributes();
 
-
 open (my $f, ">$outputFile") or die "Could not open $outputFile\n";
 
 printVersion($f);
-printIncludes($f, 0);
+printIncludes($f, PRE_ROOT_INCLUDES);
 printRootNodeStart($f);
 
 printPropertyList($f, 1, "model", getSystemBMCModel());
@@ -49,11 +60,13 @@ printPropertyList($f, 1, "compatible", getBMCCompatibles());
 
 printNode($f, 1, "aliases", getAliases());
 printNode($f, 1, "chosen", getChosen());
-printNode($f, 1, "memory", getMemory($g_bmc));
+printNode($f, 1, "memory", getBmcMemory());
 
 printNodes($f, 1, getSpiFlashNodes());
 
 printNode($f, 1, "leds", getLEDNode());
+
+printIncludes($f, ROOT_INCLUDES);
 
 printRootNodeEnd($f, 0);
 
@@ -61,6 +74,8 @@ printNodes($f, 0, getI2CNodes());
 printNodes($f, 0, getMacNodes());
 printNodes($f, 0, getUARTNodes());
 printNodes($f, 0, getVuartNodes());
+
+printIncludes($f, POST_ROOT_INCLUDES);
 
 close $f;
 exit 0;
@@ -102,20 +117,20 @@ sub setGlobalAttributes()
 sub getAliases()
 {
     my %aliases;
-    my $name, my $val;
 
-    #The MRW supports up to 6 name and value pairs.
-    for (my $i = 1; $i <= 6; $i++) {
-        my $nameAttr = "name$i";
-        my $valAttr = "value$i";
+    #Get the info from the config file
 
-        $name = $g_targetObj->getAttributeField($g_bmc, "BMC_DT_ALIASES",
-                                                $nameAttr);
-        if ($name ne "") {
-            $val =  $g_targetObj->getAttributeField($g_bmc, "BMC_DT_ALIASES",
-                                                    $valAttr);
-            #The value will be printed as '&val'
-            $aliases{$name} = "(alias)$val";
+    if ((not exists $g_configuration{aliases}) ||
+        (keys %{$g_configuration{aliases}} == 0)) {
+        print "WARNING:  Missing or empty 'aliases' section in config file.\n";
+        return %aliases;
+    }
+    %aliases = %{ $g_configuration{aliases} };
+
+    #add a & reference if one is missing
+    foreach my $a (keys %aliases) {
+        if (($aliases{$a} !~ /^&/) && ($aliases{$a} !~ /^\(ref\)/)) {
+            $aliases{$a} = "(ref)$aliases{$a}";
         }
     }
 
@@ -131,202 +146,77 @@ sub getAliases()
 #   }
 sub getChosen()
 {
-    my $bmcStdOut = $g_targetObj->getAttributeField($g_bmc, "BMC_DT_CHOSEN",
-                                                    "stdout-path");
-    my $args = $g_targetObj->getAttributeField($g_bmc, "BMC_DT_CHOSEN",
-                                              "bootargs");
     my %chosen;
-    $chosen{"stdout-path"} = $bmcStdOut;
-    $chosen{"bootargs"} = $args;
+    my @allowed = qw(bootargs stdin-path stdout-path);
+
+    #Get the info from the config file
+
+    if (not exists $g_configuration{chosen}) {
+        die "ERROR:  Missing 'chosen' section in config file.\n";
+    }
+    %chosen = %{ $g_configuration{chosen} };
+
+    #Check for allowed entries.  Empty is OK.
+    foreach my $key (keys %chosen) {
+        my $found = 0;
+        foreach my $good (@allowed) {
+            if ($key eq $good) {
+                $found = 1;
+            }
+        }
+
+        if ($found == 0) {
+            die "Invalid entry $key in 'chosen' section in config file\n";
+        }
+    }
+
     return %chosen;
 }
 
 
-#Gets the nodes that represents the BMC's SPI flash chips.  They're based
-#on information from the spi-master-unit end of the connection, with
-#a subnode of information from the destination chip.
-#On ASPEED chips, they're nested under the ahb node (Advanced
-#High-performance Bus).
+#Return a hash that represents the 'memory' node.
 #Will look like:
-#   ahb {
-#     fmc@... {
-#       reg = ...
-#       #address-cells = ...
-#       #size-cells = ...
-#       #compatible = ...
-#
-#       flash@... {
-#          reg = ...
-#          compatible = ...
-#          label = ...
-# #include ...
-#       }
-#     }
-#     spi@... {
-#     ...
-#     }
-#   }
+#  memory {
+#     reg = < base size >
+#  }
+sub getBmcMemory()
+{
+    my %memory;
+
+    #Get the info from the config file
+
+    if (not exists $g_configuration{memory}) {
+        die "ERROR:  Missing 'memory' section in config file.\n";
+    }
+
+    if ((not exists $g_configuration{memory}{base}) ||
+        ($g_configuration{memory}{base} !~ /0x/)) {
+        die "ERROR:  The base entry in the memory section in the config " .
+            "file is either missing or invalid.\n";
+    }
+
+    if ((not exists $g_configuration{memory}{size}) ||
+        ($g_configuration{memory}{size} !~ /0x/)) {
+        die "ERROR:  The size entry in the memory section in the config " .
+            "file is either missing or invalid.\n";
+    }
+
+    #Future: could do more validation on the actual values
+
+    $memory{reg} = "<$g_configuration{memory}{base} " .
+                   "$g_configuration{memory}{size}>";
+
+    return %memory;
+}
+
+
+
 sub getSpiFlashNodes()
 {
-    my %parentNode, my %node, my @nodes;
-    my $lastParentNodeName = "default";
-    my $parentNodeName = "ahb";
-
-    my $connections = findConnections($g_bmc, "SPI", "FLASH");
-    if ($connections eq "") {
-        print "WARNING:  No SPI flashes found connected to the BMC\n";
-        return @nodes;
-    }
-
-    foreach my $spi (@{$connections->{CONN}}) {
-
-        my %unitNode; #Node for the SPI master unit
-        my %flashNode; #subnode for the flash chip itself
-        my $flashNodeName = "flash";
-        my $nodeLabel = "";
-        my @addresses;
-
-
-        #Adds a comment into the output file about the MRW connection
-        #that makes up this node.  Not that {SOURCE} always represents
-        #the master unit, and DEST_PARENT represents the destination
-        #chip.  The destination unit {DEST} isn't usually that interesting.
-        $unitNode{COMMENT} = "$spi->{SOURCE} ->\n$spi->{DEST_PARENT}";
-
-        #These flashes are nested in the 'ahb' (an internal chip bus)
-        #node in ASPEED chips.  Get the name of it here. Will default
-        #to 'ahb' if not set.
-        if (!$g_targetObj->isBadAttribute($spi->{SOURCE},
-                                        "INTERNAL_BUS", "NA")) {
-            $parentNodeName = $g_targetObj->getAttribute($spi->{SOURCE},
-                                                       "INTERNAL_BUS");
-            #Not going to support this unless we have to
-            if ($parentNodeName != $lastParentNodeName) {
-                die "ERROR: SPI master unit $spi->{SOURCE} has a " .
-                    "different internal bus name $parentNodeName than " .
-                    "previous name $lastParentNodeName\n";
-            }
-            else {
-                $lastParentNodeName = $parentNodeName;
-            }
-        }
-        else {
-            print "WARNING: No INTERNAL_BUS attribute value found for " .
-                  "SPI flash unit $spi->{SOURCE}. Using '$parentNodeName'\n";
-        }
-
-        #The reg base and size of the unit will be added into
-        #the reg property
-        my $regBase = $g_targetObj->getAttribute($spi->{SOURCE},
-                                               "BMC_DT_REG_BASE");
-        my $regSize = $g_targetObj->getAttribute($spi->{SOURCE},
-                                               "BMC_DT_REG_SIZE");
-
-        #There is also another memory range that goes into reg
-        my %sourceRegHash = getMemory($spi->{SOURCE});
-
-        #Insert the regBase and regSize to the memory < ... > property
-        $unitNode{reg} = "< $regBase $regSize " . substr($sourceRegHash{reg}, 2);
-
-        #usually, this will be something like 'smc' or 'spi'
-        my $nodeName = "spi";
-        if (!$g_targetObj->isBadAttribute($spi->{SOURCE},
-                                        "BMC_DT_NODE_NAME")) {
-            $nodeName = $g_targetObj->getAttribute($spi->{SOURCE},
-                                                 "BMC_DT_NODE_NAME");
-        }
-        else {
-            print "WARNING: No BMC_DT_NODE_NAME attribute value found for " .
-                  "SPI flash unit $spi->{SOURCE}. Using 'spi'\n";
-        }
-
-        #now turn it into something like fmc@...
-        $regBase =~ s/^0x//;
-        $nodeName .= "@".$regBase;
-
-        if (!$g_targetObj->isBadAttribute($spi->{SOURCE},
-                                        "BMC_DT_COMPATIBLE")) {
-            $unitNode{compatible} = $g_targetObj->
-                    getAttribute($spi->{SOURCE}, "BMC_DT_COMPATIBLE");
-        }
-        else {
-            print "WARNING: No BMC_DT_COMPATIBLE attribute found for SPI " .
-                  "flash unit $spi->{SOURCE}\n";
-        }
-
-        #The flash chip has its one reg property as well
-        if (!$g_targetObj->isBadAttribute($spi->{DEST_PARENT},
-                                        "BMC_DT_REG_PROPERTY")) {
-            $flashNode{reg} = $g_targetObj->getAttribute($spi->{DEST_PARENT},
-                                                       "BMC_DT_REG_PROPERTY");
-            $flashNode{reg} = "<" . $flashNode{reg} . ">";
-        }
-        else {
-            print "WARNING: No BMC_REG_PROPERTY attribute found for SPI " .
-                  "flash $spi->{DEST_PARENT}.  Using <0>.\n";
-            $flashNode{reg} = "<0>";
-        }
-
-        if (!$g_targetObj->isBadAttribute($spi->{DEST_PARENT},
-                                        "BMC_DT_COMPATIBLE")) {
-            $flashNode{compatible} = $g_targetObj->
-                    getAttribute($spi->{DEST_PARENT}, "BMC_DT_COMPATIBLE");
-        }
-        else {
-            print "WARNING: No BMC_DT_COMPATIBLE attribute found for SPI " .
-                  "flash $spi->{DEST_PARENT}\n";
-        }
-
-        if (!$g_targetObj->isBadAttribute($spi->{DEST_PARENT},
-                                        "BMC_DT_LABEL_PROPERTY")) {
-            $flashNode{label} = $g_targetObj->
-                    getAttribute($spi->{DEST_PARENT}, "BMC_DT_LABEL_PROPERTY");
-        }
-
-        #Some flash chips have a .dtsi include to pull in more properties.
-        #Future - contents of the includes could be pulled into the MRW
-        #as new attributes.
-        if (!$g_targetObj->isBadAttribute($spi->{DEST_PARENT},
-                                        "BMC_DT_INCLUDES")) {
-            my $incs = $g_targetObj->
-                    getAttribute($spi->{DEST_PARENT}, "BMC_DT_INCLUDES");
-            #first remove the spaces and NAs
-            $incs =~ s/\s+//g;
-            $incs =~ s/NA,*//g;
-            $flashNode{DTSI_INCLUDE} = $incs;
-        }
-
-        #the flash subnode name also has its reg[0] appended
-        #like flash@...
-        @addresses = split(' ', $flashNode{reg});
-        $addresses[0] =~ s/<//;
-        $addresses[0] =~ s/>//;
-        $flashNodeName .= "@" . $addresses[0];
-        $unitNode{$flashNodeName} = { %flashNode };
-
-        #For now, just support a chip with 1 reg value
-        if (scalar @addresses == 1) {
-            $unitNode{'#address-cells'} = "<1>";
-            $unitNode{'#size-cells'} = "<0>";
-        }
-        else {
-            die "ERROR:  Unsupported number of <reg> entries " .
-                "in flash node $flashNodeName for SPI flash " .
-                "$spi->{DEST_PARENT}.  Only 1 entry supported.\n";
-        }
-
-        #This node will end up being in an array on the parent node
-        my %node;
-        $node{$nodeName} = { %unitNode };
-        push @nodes, { %node };
-    }
-
-    $parentNode{$parentNodeName}{nodes} = [ @nodes ];
-
-    #There is always just one in the array
-    my @finalNodes;
-    push @finalNodes, { %parentNode };
-    return @finalNodes;
+    #TODO: A new binding is coming soon that is much more simple than
+    #the previous one.  When that is available, this function will
+    #be updated to support it.  Before then, a root node include
+    #will pick up the legacy spi flash nodes.
 }
 
 
@@ -709,38 +599,6 @@ sub adjustI2CBusNum()
 }
 
 
-#Returns a hash{'reg'} = "<.....>"  based on the
-#BMC_DT_MEMORY attribute.  This is used to display
-#memory ranges.
-sub getMemory()
-{
-    my $target = shift;
-    my $memory = $g_targetObj->getAttribute($target, "BMC_DT_MEMORY");
-    my @mem = split(',', $memory);
-    my %property;
-    my $val = "< ";
-
-    #Encoded as 4 <base address>,<size> pairs of memory ranges
-    #Unused ranges are all 0s.
-    #For now, assumes 32 bit numbers, revisit later for 64 bit support
-    #Convert it into:  <num1 num2 num3 num4 etc>
-
-    for (my $i = 0;$i < scalar @mem;$i += 2) {
-
-        #pair is valid if size is nonzero
-        if (hex($mem[$i+1]) != 0) {
-            $val .= "$mem[$i] $mem[$i+1] ";
-        }
-    }
-
-    $val =~ s/\s$//;
-    $val .= " >";
-    $property{reg} = $val;
-
-    return %property;
-}
-
-
 #Returns a list of compatible fields for the BMC itself.
 sub getBMCCompatibles()
 {
@@ -889,7 +747,7 @@ sub printPropertyList()
     print $f indent($level) . "$name = ";
 
     for (my $i = 0;$i < scalar @vals; $i++) {
-        print $f "\"$vals[$i]\"";
+        print $f qq("$vals[$i]");
         if ($i < (scalar(@vals) - 1)) {
             print $f ", ";
         }
@@ -906,37 +764,37 @@ sub printPropertyList()
 sub printProperty()
 {
     my ($f, $level, $name, $val) = @_;
-    my $quote = "\"";
+    my $quoteChar = qq(");
 
-    $val = convertAlias($val);
+    $val = convertReference($val);
 
     #properties with < > or single word aliases don't need quotes
     if (($val =~ /<.*>/) || ($val =~ /^&\w+$/)) {
-        $quote = "";
+        $quoteChar = "";
     }
 
-    print $f indent($level) . "$name = $quote$val$quote;\n";
+    print $f indent($level) . "$name = $quoteChar$val$quoteChar;\n";
 }
 
 
-#Prints a standalone property e.g. some-property;
+#Prints a zero length property e.g. some-property;
 #  $f = file handle
 #  $level = indent level (0,1,etc)
 #  $name = name of property
-sub printStandaloneProperty()
+sub printZeroLengthProperty()
 {
     my ($f, $level, $name) = @_;
     print $f indent($level) . "$name;\n";
 }
 
 
-#Replace '(alias)' with '&'.
+#Replace '(ref)' with '&'.
 #Needed because Serverwiz doesn't properly escape '&'s in the XML,
-#so the '(alias)' string is used to represent the alias
+#so the '(ref)' string is used to represent the reference
 #specifier instead of '&'.
-sub convertAlias() {
+sub convertReference() {
     my $val = shift;
-    $val =~ s/\(alias\)/&/g;
+    $val =~ s/\(ref\)/&/g;
     return $val
 }
 
@@ -965,47 +823,47 @@ sub printVersion()
 
 
 #Prints the #include line for pulling in an include file.
+#The files to include come from the configuration file.
 #  $f = file handle
-#  $level = indent level (0,1,etc)
+#  $type = include type
 sub printIncludes()
 {
-    my ($f, $level) = @_;
-    my @includes = getIncludes($g_bmc);
+    my ($f, $type) = @_;
+    my @includes = getIncludes($type);
 
     foreach my $i (@includes) {
         #if a .dtsi, gets " ", otherwise < >
         if ($i =~ /\.dtsi$/) {
-            $i = "\"" . $i . "\"";
+            $i = qq("$i");
         }
         else {
-            $i = "<" . $i . ">";
+            $i = "<$i>";
         }
-        print $f indent($level) . "#include $i;\n";
+        print $f "#include $i;\n";
     }
 }
 
 
-#Returns an array of includes from the BMC_DT_INCLUDES attribute
-#on the target passed in.
-#  $target = the target to get the includes from
+#Returns an array of include files found in the config file
+#for the type specified.
+# $type = the include type, which is the section name in the
+#         YAML configuration file.
 sub getIncludes()
 {
-    my $target = shift;
+    my $type = shift;
     my @includes;
 
-    if (!$g_targetObj->isBadAttribute($target, "BMC_DT_INCLUDES")) {
-        my $attr = $g_targetObj->getAttribute($target, "BMC_DT_INCLUDES");
-        $attr =~ s/\s+//g; #remove whitespace
-        $attr =~ s/NA,*//g; #remove the NAs
-        my @incs = split(',', $attr);
+    #The config file may have a section but no includes
+    #listed in it, which is OK.
+    if ((exists $g_configuration{includes}{$type}) &&
+        (ref($g_configuration{includes}{$type}) eq "ARRAY")) {
 
-        foreach my $i (@incs) {
-            push @includes, $i
-        }
+        @includes = @{$g_configuration{includes}{$type}};
     }
 
     return @includes;
 }
+
 
 #Appends the first value of the 'reg' property
 #passed in to the name passed in to create the
@@ -1033,7 +891,7 @@ sub makeNodeName()
 #  $f = file handle
 sub printRootNodeStart() {
     my $f = shift;
-    print $f "\\ \{\n";
+    print $f qq(/ {\n);
 }
 
 
@@ -1042,7 +900,7 @@ sub printRootNodeStart() {
 #  $level = indent level (0,1,etc)
 sub printRootNodeEnd() {
     my ($f, $level) = @_;
-    print $f indent($level)."\};\n";
+    print $f indent($level).qq(};\n);
 }
 
 
@@ -1120,6 +978,7 @@ sub getAllTargetChildren()
 
 sub printUsage
 {
-    print "gen_devtree.pl -x [XML filename] -o [output filename]\n";
+    print "gen_devtree.pl -x [XML filename] -y [yaml config file] " .
+          "-o [output filename]\n";
     exit(1);
 }
