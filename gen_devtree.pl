@@ -569,7 +569,7 @@ sub adjustI2CAddress()
 
     #MRW holds the 8 bit value.  We need the 7 bit one.
     my $addr = $addr >> 1;
-    $addr = sprintf("%X", $addr);
+    $addr = sprintf("0x%X", $addr);
     $addr = lc $addr;
 
     return $addr;
