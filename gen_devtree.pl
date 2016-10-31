@@ -59,7 +59,7 @@ printNode($f, 1, "aliases", getAliases());
 printNode($f, 1, "chosen", getChosen());
 printNode($f, 1, "memory", getBmcMemory());
 
-printNodes($f, 1, getSpiFlashNodes());
+printNodes($f, 1, getBMCFlashNodes());
 
 printNode($f, 1, "leds", getLEDNode());
 
@@ -207,13 +207,120 @@ sub getBmcMemory()
 }
 
 
-
-sub getSpiFlashNodes()
+#Returns an array of hashes representing the device tree nodes for
+#the BMC flash.  These nodes are BMC model specific because different
+#models can have different device drivers.
+sub getBMCFlashNodes()
 {
-    #TODO: A new binding is coming soon that is much more simple than
-    #the previous one.  When that is available, this function will
-    #be updated to support it.  Before then, a root node include
-    #will pick up the legacy spi flash nodes.
+    my @nodes;
+
+    if ($g_bmcModel eq "AST2500") {
+        my %node = getAST2500BMCSPIFlashNode();
+        push @nodes, { %node };
+    }
+    else {
+        die "ERROR:  No BMC SPI flash support yet for BMC model $g_bmcModel\n";
+    }
+
+    return @nodes;
+}
+
+
+#Returns a hash that represents the BMC SPI flash(es) by finding the SPI
+#connections that come from the unit tagged as BMC_CODE.  The code also
+#looks in the config file for any additional properties to add.  Supports
+#the hardware where the same SPI master unit can be wired to more than 1
+#flash (a chip select line is used to switch between them.)  This is
+#specific to the ASPEED AST2500 hardware and device driver.
+#Will look like:
+#  fmc {
+#    status = "okay"
+#    flash@0 {
+#       ...
+#    };
+#    flash@1 {
+#       ...
+#    };
+sub getAST2500BMCSPIFlashNode()
+{
+    my %bmcFlash;
+    my $chipSelect = 0;
+    my $lastUnit = "";
+
+    my $connections = findConnections($g_bmc, "SPI", "FLASH");
+
+    if ($connections eq "") {
+        die "ERROR:  No BMC SPI flashes found connected to the BMC\n";
+    }
+
+    $bmcFlash{fmc}{status} = "okay";
+
+    foreach my $spi (@{$connections->{CONN}}) {
+
+        #Looking for spi-masters with a function of 'BMC_CODE'.
+        #It's possible there are multiple flash chips here.
+        if (!$g_targetObj->isBadAttribute($spi->{SOURCE}, "SPI_FUNCTION")) {
+
+            my $function = $g_targetObj->getAttribute($spi->{SOURCE},
+                                                      "SPI_FUNCTION");
+            if ($function eq "BMC_CODE") {
+
+                my $flashName = "flash@".$chipSelect;
+
+                $bmcFlash{fmc}{$flashName}{COMMENT} = "$spi->{SOURCE} ->\n" .
+                                                      "$spi->{DEST_PARENT}";
+
+                $bmcFlash{fmc}{$flashName}{status} = "okay";
+
+                #Add in anything specified in the config file for this chip.
+                addBMCFlashConfigProperties(\%{$bmcFlash{fmc}{$flashName}},
+                                            $chipSelect);
+
+                #The code currently only supports the config where a chip
+                #select line is used to select between possibly multiple
+                #flash chips attached to the same SPI pins/unit.  So we
+                #need to make sure if there are multiple chips found, that
+                #they are off of the same master unit.
+                if ($lastUnit eq "") {
+                    $lastUnit = $spi->{SOURCE};
+                }
+                else {
+                    if ($lastUnit ne $spi->{SOURCE}) {
+                        die "ERROR:  Currently only 1 spi-master unit is " .
+                            "supported for BMC flash connections."
+                    }
+                }
+
+                #Since we don't need anything chip select specific from the
+                #XML, we can just assign our own chip selects.
+                $chipSelect++;
+            }
+        }
+    }
+
+    if ($chipSelect == 0) {
+        die "ERROR:  Didn't find any BMC flash chips connected";
+    }
+
+    return %bmcFlash;
+}
+
+
+#Looks in the bmc-flash-config section in the config file for the
+#chip select passed in to add any additional properties to the BMC
+#flash node.
+#  $node = hash reference to the flash node
+#  $cs = the flash chip select value
+sub addBMCFlashConfigProperties()
+{
+    my ($node, $cs) = @_;
+    my $section = "chip-select-$cs";
+
+    if (exists $g_configuration{"bmc-flash-config"}{$section}) {
+        foreach my $key (sort keys $g_configuration{"bmc-flash-config"}{$section}) {
+            $node->{$key} = $g_configuration{"bmc-flash-config"}{$section}{$key};
+        }
+    }
 }
 
 
