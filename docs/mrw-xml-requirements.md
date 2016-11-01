@@ -55,8 +55,12 @@ the device is placed into a system in Serverwiz.
 of the necessary device tree attributes.
 
 
-### SPI Flashes
-> Coming soon after new device driver released.
+### BMC SPI Flashes
+The device tree can support either 1 or 2 BMC SPI flash chips.  This is
+accomplished by connecting instances of the `BMC_FLASH` part to the
+spi-master-unit on the BMC that has its `SPI_FUNCTION` attribute set to
+`BMC_CODE`.  If there are multiple chips, they are both connected to the
+same unit.
 
 
 ### Ethernet MAC Units
