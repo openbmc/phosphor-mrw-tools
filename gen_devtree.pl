@@ -61,6 +61,8 @@ printNode($f, 1, "memory", getBmcMemory());
 
 printNodes($f, 1, getBMCFlashNodes());
 
+printNodes($f, 1, getOtherFlashNodes());
+
 printNode($f, 1, "leds", getLEDNode());
 
 printIncludes($f, ROOT_INCLUDES);
@@ -267,8 +269,7 @@ sub getAST2500BMCSPIFlashNode()
 
                 my $flashName = "flash@".$chipSelect;
 
-                $bmcFlash{fmc}{$flashName}{COMMENT} = "$spi->{SOURCE} ->\n" .
-                                                      "$spi->{DEST_PARENT}";
+                $bmcFlash{fmc}{$flashName}{COMMENT} = connectionComment($spi);
 
                 $bmcFlash{fmc}{$flashName}{status} = "okay";
 
@@ -324,6 +325,98 @@ sub addBMCFlashConfigProperties()
 }
 
 
+#Returns an array of hashes representing the other flashes used by the
+#BMC besides the ones that hold the BMC code.  This is BMC model specific
+#as different models can have different interfaces.
+#Typically, these are SPI flashes.
+sub getOtherFlashNodes()
+{
+    my @nodes;
+
+    if ($g_bmcModel eq "AST2500") {
+        @nodes = getAST2500SpiFlashNodes();
+    }
+    else {
+        die "ERROR:  No SPI flash support yet for BMC model $g_bmcModel\n";
+    }
+
+    return @nodes;
+}
+
+
+#Returns an array of hashes representing the SPI flashes in an
+#AST2500.  These are for the SPI1 and SPI2 interfaces in the chip.
+#Each SPI master interface can support multiple flash chips.  If
+#no hardware is connected to the interface, the node won't be present.
+sub getAST2500SpiFlashNodes()
+{
+    my @nodes;
+
+    #The AST2500 has 2 SPI master units, 1 and 2.
+    my @units = (1, 2);
+
+    foreach my $unit (@units) {
+
+        my %node = getAST2500SpiMasterNode($unit);
+
+        if (keys %node) {
+            my %spiNode;
+            my $nodeName = "spi$unit";
+            $spiNode{$nodeName} = { %node };
+            push @nodes, { %spiNode };
+        }
+    }
+
+    return @nodes;
+}
+
+
+#Returns a hash that represents the device tree node for the SPI1
+#or SPI2 master interface on the AST2500.  Each master can support
+#multiple chips by use of a chip select.
+#Will look like:
+#  spi1 {
+#    status = "okay";
+#    flash@0 {
+#       ...
+#    };
+#  };
+#
+#  $spiNum = The SPI master unit number to use
+sub getAST2500SpiMasterNode()
+{
+    my $spiNum = shift;
+    my %spiMaster;
+    my $chipSelect = 0;
+
+    my $connections = findConnections($g_bmc, "SPI", "FLASH");
+
+    if ($connections eq "") {
+        return %spiMaster;
+    }
+
+    #Looking for spi-masters with a chip-unit of $spiNum
+    #It's possible there are multiple flash chips off the master
+    foreach my $spi (@{$connections->{CONN}}) {
+
+        my $unitNum = $g_targetObj->getAttribute($spi->{SOURCE},
+                                                 "CHIP_UNIT");
+        if ($unitNum == $spiNum) {
+            $spiMaster{status} = "okay";
+            my $flashName = "flash@".$chipSelect;
+
+            $spiMaster{$flashName}{COMMENT} = connectionComment($spi);
+
+            $spiMaster{$flashName}{status} = "okay";
+
+            $chipSelect++;
+        }
+    }
+
+    return %spiMaster;
+}
+
+
 #Returns a hash that represents the leds node by finding all of the
 #GPIO connections to LEDs.
 #Node will look like:
@@ -350,7 +443,7 @@ sub getLEDNode()
     foreach my $gpio (@{$connections->{CONN}}) {
         my %ledNode;
 
-        $ledNode{COMMENT} = "$gpio->{SOURCE} ->\n$gpio->{DEST_PARENT}";
+        $ledNode{COMMENT} = connectionComment($gpio);
 
         #The node name will be the simplified LED name
         my $name = $gpio->{DEST_PARENT};
@@ -450,7 +543,7 @@ sub getUARTNodes()
         my $name = "uart$num";
 
         $node{$name}{status} = "okay";
-        $node{$name}{COMMENT} = "$uart->{SOURCE} ->\n$uart->{DEST_PARENT}";
+        $node{$name}{COMMENT} = connectionComment($uart);
 
         push @nodes, { %node };
     }
@@ -494,7 +587,7 @@ sub getMacNodes()
             $node{$name}{"no-hw-checksum"} = ZERO_LENGTH_PROPERTY;
         }
 
-        $node{$name}{COMMENT} = "$eth->{SOURCE} ->\n$eth->{DEST_PARENT}";
+        $node{$name}{COMMENT} = connectionComment($eth);
 
         push @nodes, { %node };
     }
@@ -558,7 +651,7 @@ sub getI2CNodes()
 
         my %deviceNode, my $deviceName;
 
-        $deviceNode{COMMENT} = "$i2c->{SOURCE} ->\n$i2c->{DEST_PARENT}";
+        $deviceNode{COMMENT} = connectionComment($i2c);
 
         $deviceName = lc $i2c->{DEST_PARENT};
         $deviceName =~ s/-\d+$//; #remove trailing position
@@ -735,6 +828,19 @@ sub getSystemBMCModel()
     return $sys . " BMC";
 }
 
+#Create the comment that will show up in the device tree
+#for a connection.  In the output, will look like:
+# // sourceUnit ->
+# // destChip
+#
+#  $conn = The connection hash reference
+sub connectionComment()
+{
+    my $conn = shift;
+    my $comment = "$conn->{SOURCE} ->\n$conn->{DEST_PARENT}";
+    return $comment;
+}
+
 
 #Prints a list of nodes at the same indent level
 #  $f = file handle
@@ -775,6 +881,11 @@ sub printNode()
 {
     my ($f, $level, $name, %vals) = @_;
     my $include = "";
+
+    #No reason to print an empty node
+    if (!keys %vals) {
+        return;
+    }
 
     if ($level == 0) {
         $name = "&".$name;
