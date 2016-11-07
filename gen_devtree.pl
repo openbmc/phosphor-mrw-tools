@@ -431,7 +431,7 @@ sub getLEDNode()
 {
     my %leds;
 
-    $leds{compatible} = "gpio-led";
+    $leds{compatible} = "gpio-leds";
 
     my $connections = findConnections($g_bmc, "GPIO", "LED");
 
