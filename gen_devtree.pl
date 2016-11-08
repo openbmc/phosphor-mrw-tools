@@ -403,6 +403,13 @@ sub getAST2500SpiMasterNode()
                                                  "CHIP_UNIT");
         if ($unitNum == $spiNum) {
             $spiMaster{status} = "okay";
+
+            #Add in any pinctrl properties.  These would come from the parent
+            #of $spi{SOURCE}, which would be a unit-pingroup-bmc if the
+            #pins for this connection are multi-function.
+            addPinCtrlProps($g_targetObj->getTargetParent($spi->{SOURCE}),
+                            \%spiMaster);
+
             my $flashName = "flash@".$chipSelect;
 
             $spiMaster{$flashName}{COMMENT} = connectionComment($spi);
@@ -545,6 +552,12 @@ sub getUARTNodes()
         $node{$name}{status} = "okay";
         $node{$name}{COMMENT} = connectionComment($uart);
 
+        #Add in any pinctrl properties.  These would come from the parent
+        #of $uart{SOURCE}, which would be a unit-pingroup-bmc if the
+        #pins for this connection are multi-function.
+        addPinCtrlProps($g_targetObj->getTargetParent($uart->{SOURCE}),
+                        \%{$node{$name}});
+
         push @nodes, { %node };
     }
 
@@ -588,6 +601,12 @@ sub getMacNodes()
         }
 
         $node{$name}{COMMENT} = connectionComment($eth);
+
+        #Add in any pinctrl properties.  These would come from the parent
+        #of $eth{SOURCE}, which would be a unit-pingroup-bmc if the
+        #pins for this connection are multi-function.
+        addPinCtrlProps($g_targetObj->getTargetParent($eth->{SOURCE}),
+                        \%{$node{$name}});
 
         push @nodes, { %node };
     }
@@ -708,6 +727,12 @@ sub getI2CNodes()
         my $busNodeName = "i2c$busNum";
         $busNodes{$busNodeName}{$busNodeName}{status} = "okay";
         $busNodes{$busNodeName}{$busNodeName}{$deviceName} = { %deviceNode };
+
+        #Add in any pinctrl properties.  These would come from the parent
+        #of $i2c{SOURCE}, which would be a unit-pingroup-bmc if the
+        #pins for this connection are multi-function.
+        addPinCtrlProps($g_targetObj->getTargetParent($i2c->{SOURCE}),
+                        \%{$busNodes{$busNodeName}{$busNodeName}});
     }
 
     #Each bus gets its own hash entry in the array
@@ -793,6 +818,63 @@ sub getI2CBusAdjust()
         print "WARNING: No I2C Bus number adjustment done " .
               "for this system.\n";
     }
+}
+
+
+
+#Adds two pinctrl properties to the device node hash passed in,
+#if specified in the MRW.  Pin Control refers to a mechanism for
+#Linux to know which function of a multi-function pin to configure.
+#For example, a pin could either be configured to be a GPIO, or
+#an I2C clock line.  The pin function depends on board wiring,
+#so is known by the MRW.
+#  $target = the target to get the BMC_DT_PINCTRL_FUNCTS attribute from
+#  $node = a hash reference to the device tree node to add the properties to
+sub addPinCtrlProps()
+{
+    my ($target, $node) = @_;
+
+    if (!$g_targetObj->isBadAttribute($target, "BMC_DT_PINCTRL_FUNCS")) {
+        my $attr = $g_targetObj->getAttribute($target,
+                                              "BMC_DT_PINCTRL_FUNCS");
+
+        my $pinCtrl0Prop = makePinCtrl0PropValue($attr);
+        if ($pinCtrl0Prop ne "") {
+            $node->{"pinctrl-names"} = "default";
+            $node->{"pinctrl-0"} = $pinCtrl0Prop;
+        }
+    }
+}
+
+
+#Constructs the pinctrl-0 property value based on the
+#BMC_DT_PINCTRL_FUNCS attribute passed in.
+#  $attr = BMC_DT_PINCTRL_FUNCS attribute value, which is an array
+sub makePinCtrl0PropValue()
+{
+    my $attr = shift;
+    my @entries;
+    my $value = "";
+
+    $attr =~ s/\s//g;
+    my @funcs = split(',', $attr);
+    foreach my $func (@funcs) {
+        if (($func ne "NA") && ($func ne "")) {
+            push @entries, $func;
+        }
+    }
+
+    #<&pinctrl_funcA_default &pinctrl_funcB_default ...>
+    if (scalar @entries) {
+        $value = "<";
+        foreach my $entry (@entries) {
+            $value .= "&pinctrl_".$entry."_default ";
+        }
+        $value =~ s/\s$//; #Remove the trailing space
+        $value .= ">";
+    }
+
+    return $value;
 }
 
 
