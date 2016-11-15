@@ -249,7 +249,7 @@ sub getAST2500BMCSPIFlashNode()
     my $chipSelect = 0;
     my $lastUnit = "";
 
-    my $connections = findConnections($g_bmc, "SPI", "FLASH");
+    my $connections = $g_targetObj->findConnections($g_bmc, "SPI", "FLASH");
 
     if ($connections eq "") {
         die "ERROR:  No BMC SPI flashes found connected to the BMC\n";
@@ -389,7 +389,7 @@ sub getAST2500SpiMasterNode()
     my %spiMaster;
     my $chipSelect = 0;
 
-    my $connections = findConnections($g_bmc, "SPI", "FLASH");
+    my $connections = $g_targetObj->findConnections($g_bmc, "SPI", "FLASH");
 
     if ($connections eq "") {
         return %spiMaster;
@@ -433,7 +433,7 @@ sub getLEDNode()
 
     $leds{compatible} = "gpio-leds";
 
-    my $connections = findConnections($g_bmc, "GPIO", "LED");
+    my $connections = $g_targetObj->findConnections($g_bmc, "GPIO", "LED");
 
     if ($connections eq "") {
         print "WARNING:  No LEDs found connected to the BMC\n";
@@ -529,7 +529,7 @@ sub getUARTNodes()
     my @nodes;
 
     #Using U750 for legacy MRW reasons
-    my $connections = findConnections($g_bmc, "U750");
+    my $connections = $g_targetObj->findConnections($g_bmc, "U750");
 
     if ($connections eq "") {
         print "WARNING:  No UART buses found connected to the BMC\n";
@@ -562,7 +562,7 @@ sub getMacNodes()
 {
     my @nodes;
 
-    my $connections = findConnections($g_bmc, "ETHERNET");
+    my $connections = $g_targetObj->findConnections($g_bmc, "ETHERNET");
 
     if ($connections eq "") {
         print "WARNING:  No ethernet buses found connected to the BMC\n";
@@ -640,7 +640,7 @@ sub getI2CNodes()
     my @nodes;
     my %busNodes;
 
-    my $connections = findConnections($g_bmc, "I2C");
+    my $connections = $g_targetObj->findConnections($g_bmc, "I2C");
 
     if ($connections eq "") {
         print "WARNING:  No I2C buses found connected to the BMC\n";
@@ -1125,69 +1125,6 @@ sub printRootNodeEnd() {
 sub indent() {
     my $level = shift;
     return ' ' x ($level * 4);
-}
-
-
-#Will look for all the connections of the specified type coming from
-#any sub target of the specified target, instead of just 1 level down
-#like the Targets inteface does.  Needed because sometimes we have
-#target->pingroup->sourceunit instead of just target->sourceunit
-#  $target = the target to find connections off of
-#  $bus = the bus type
-#  $partType = destination part type, leave off if a don't care
-sub findConnections() {
-    my ($target, $bus, $partType) = @_;
-    my %allConnections;
-    my $i = 0;
-
-    #get the ones from target->child
-    my $connections = $g_targetObj->findConnections($target, $bus, $partType);
-    if ($connections ne "") {
-        foreach my $c (@{$connections->{CONN}}) {
-            $allConnections{CONN}[$i] = { %{$c} };
-            $i++;
-        }
-    }
-
-    #get everything deeper
-    my @children = getAllTargetChildren($target);
-    foreach my $c (@children) {
-        my $connections = $g_targetObj->findConnections($c, $bus, $partType);
-        if ($connections ne "") {
-
-            foreach my $c (@{$connections->{CONN}}) {
-                $allConnections{CONN}[$i] = { %{$c} };
-                $i++;
-            }
-        }
-    }
-
-    #Match the Targets::findConnections return strategy
-    if (!keys %allConnections) {
-        return "";
-    }
-
-    return \%allConnections;
-}
-
-#Returns every sub target, not just the 1st level children.
-#  $target = the target to find the children of
-sub getAllTargetChildren()
-{
-    my $target = shift;
-    my @children;
-
-    my $targets = $g_targetObj->getTargetChildren($target);
-    if ($targets ne "") {
-
-        foreach my $t (@$targets) {
-            push @children, $t;
-            my @more = getAllTargetChildren($t);
-            push @children, @more;
-        }
-    }
-
-    return @children;
 }
 
 
