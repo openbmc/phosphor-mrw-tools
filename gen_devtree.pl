@@ -59,15 +59,15 @@ printNode($f, 1, "aliases", getAliases());
 printNode($f, 1, "chosen", getChosen());
 printNode($f, 1, "memory", getBmcMemory());
 
-printNodes($f, 1, getBMCFlashNodes());
-
-printNodes($f, 1, getOtherFlashNodes());
-
 printNode($f, 1, "leds", getLEDNode());
 
 printIncludes($f, ROOT_INCLUDES);
 
 printRootNodeEnd($f, 0);
+
+printNodes($f, 0, getBMCFlashNodes());
+
+printNodes($f, 0, getOtherFlashNodes());
 
 printNodes($f, 0, getI2CNodes());
 printNodes($f, 0, getMacNodes());
@@ -793,7 +793,7 @@ sub adjustI2CAddress()
     my $addr = shift;
 
     #MRW holds the 8 bit value.  We need the 7 bit one.
-    my $addr = $addr >> 1;
+    $addr = $addr >> 1;
     $addr = sprintf("0x%X", $addr);
     $addr = lc $addr;
 
