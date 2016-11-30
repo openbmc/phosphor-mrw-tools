@@ -416,6 +416,13 @@ sub getAST2500SpiMasterNode()
 
             $spiMaster{$flashName}{status} = "okay";
 
+            #AST2500 PNORs need a label
+            my $function = $g_targetObj->getAttribute($spi->{SOURCE},
+                                                      "SPI_FUNCTION");
+            if ($function eq "PNOR") {
+                $spiMaster{$flashName}{label} = "pnor";
+            }
+
             $chipSelect++;
         }
     }
