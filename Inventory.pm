@@ -10,6 +10,9 @@ my %TYPES = (SYS => 1, NODE => 1, PROC => 1, BMC => 1, GPU => 1);
 #FRU = field replaceable unit, CRU = customer replaceable unit
 my %RU_TYPES = (FRU => 1, CRU => 1);
 
+#Chips that are modeled as modules (card-chip together)
+my %MODULE_TYPES = (PROC => 1, GPU => 1);
+
 #Returns an array of hashes that represents the inventory
 #for a system.  The hash elements are:
 #TARGET:  The MRW target of the item
@@ -25,6 +28,8 @@ sub getInventory
     }
 
     findItems($targetObj, \@inventory);
+
+    pruneModuleCards($targetObj, \@inventory);
 
     return @inventory;
 }
@@ -59,6 +64,40 @@ sub findItems
     }
 }
 
+
+#Removes entries from the inventory for the card target of a module.
+#Needed because processors and GPUs are modeled as a package which
+#is a card-chip instance that plugs into a connector on the
+#backplane/processor card.  Since we already include the chip target
+#in the inventory (that's how we can identify what it is), we don't
+#need the entry for the card target.
+#
+#For example, we'll already have .../module-0/proc-0 so we don't
+#need a separate .../module-0 entry.
+sub pruneModuleCards
+{
+    my ($targetObj, $inventory) = @_;
+    my @toRemove;
+
+    #Find the parent (a card) of items of type %type
+    for my $item (@$inventory) {
+
+        if (exists $MODULE_TYPES{$targetObj->getType($item->{TARGET})}) {
+            my $card = $targetObj->getTargetParent($item->{TARGET});
+            push @toRemove, $card;
+        }
+    }
+
+    #Remove these parent cards
+    for my $c (@toRemove) {
+        for my $i (0 .. (scalar @$inventory) - 1) {
+            if ($c eq $inventory->[$i]{TARGET}) {
+                splice(@$inventory, $i, 1);
+                last;
+            }
+        }
+    }
+}
 
 1;
 
