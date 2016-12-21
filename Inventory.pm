@@ -129,6 +129,12 @@ sub makeOBMCNames
     #which is different than the regular type.
     renameSegmentWithTargetType("card-motherboard", "motherboard",
                                 $targetObj, $inventory);
+
+    #Don't need instance numbers unless there are more than 1 present
+    removeInstNumIfOneInstPresent($inventory);
+
+    #We want card1, not card-1
+    removeHyphensFromInstanceNum($inventory);
 }
 
 
@@ -287,6 +293,56 @@ sub renameSegmentWithTargetType
             my $oldSegment = $targetObj->getInstanceName($target);
             $item->{OBMC_NAME} =~ s/$oldSegment/$newSegment/;
         }
+    }
+}
+
+
+#Removes the instance number from the OBMC_NAME segments
+#where only 1 of those segments exists because numbering isn't
+#necessary to distinguish them.
+sub removeInstNumIfOneInstPresent
+{
+    my $inventory = shift;
+    my %instanceHash;
+    my $segment;
+
+    for my $item (@$inventory) {
+        #Look at all the segments, keeping track if we've
+        #seen a particular segment with the same instance before.
+        my @segments = split('/', $item->{OBMC_NAME});
+        for $segment (@segments) {
+            my ($s, $inst) = $segment =~ /(\w+)-(\d+)/;
+            if (defined $s) {
+                if (not exists $instanceHash{$s}) {
+                    $instanceHash{$s}{inst} = $inst;
+                }
+                else {
+                    if ($instanceHash{$s}{inst} ne $inst) {
+                        $instanceHash{$s}{keep} = 1;
+                    }
+                }
+            }
+        }
+    }
+
+    #Remove the instanc numbers we don't need to keep.
+    for my $segment (keys %instanceHash) {
+        if (not exists $instanceHash{$segment}{keep}) {
+            for my $item (@$inventory) {
+               $item->{OBMC_NAME} =~ s/$segment-\d+/$segment/;
+            }
+        }
+    }
+}
+
+
+#Removes the '-' from between the segment name and instance.
+sub removeHyphensFromInstanceNum
+{
+    my $inventory = shift;
+
+    for my $item (@$inventory) {
+        $item->{OBMC_NAME} =~ s/-(\d+)\b/$1/g;
     }
 }
 
