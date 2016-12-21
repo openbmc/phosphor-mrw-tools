@@ -113,6 +113,8 @@ sub makeOBMCNames
     #Don't need connectors in the name
     removeConnectors($targetObj, $inventory);
 
+    #Don't need the card instance of a PROC/GPU module
+    removeModuleFromPath($targetObj, $inventory);
 }
 
 
@@ -146,6 +148,32 @@ sub removeConnectors
             #change /connector-11/card-2/ to /card-11/
             $item->{OBMC_NAME} =~ s/\b$segment\/(\w+)-\d+/$1-$pos/;
 
+        }
+    }
+}
+
+
+#Removes the card portion of a module from OBMC_NAME.
+#For example, .../motherboard-0/module-1/proc-0 ->
+#.../motherboard-0/proc-1
+sub removeModuleFromPath
+{
+    my ($targetObj, $inventory) = @_;
+    my %chipNames;
+
+    #Find the names of the chips on the modules
+    for my $item (@$inventory) {
+        if (exists $MODULE_TYPES{$targetObj->getType($item->{TARGET})}) {
+            $chipNames{$targetObj->getInstanceName($item->{TARGET})} = 1;
+        }
+    }
+
+    #Now convert module-A/name-B to name-A
+    #Note that the -B isn't always present
+    for my $item (@$inventory) {
+
+        for my $name (keys %chipNames) {
+            $item->{OBMC_NAME} =~ s/\w+-(\d+)\/$name(-\d+)*/$name-$1/;
         }
     }
 }
