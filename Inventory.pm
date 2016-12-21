@@ -111,6 +111,44 @@ sub makeOBMCNames
 
     #Don't need the card instance of a PROC/GPU module
     removeModuleFromPath($targetObj, $inventory);
+
+    #Don't need card segments for non-FRUs
+    removeNonFRUCardSegments($targetObj, $inventory);
+}
+
+
+#Removes non-FRU cards in the middle of a hierarchy from OBMC_NAME.
+#For example, .../motherboard/fanriser-0/fan-0 ->
+# .../motherboard/fan-0 when fanriser-0 isn't a FRU.
+sub removeNonFRUCardSegments
+{
+    my ($targetObj, $inventory) = @_;
+
+    for my $item (@$inventory) {
+
+        #Split the target into segments, then start
+        #adding segments in to make new targets so we can
+        #make API calls on the segment instances.
+        my @segments = split('/', $item->{TARGET});
+        my $target = "";
+        for my $s (@segments) {
+            next if (length($s) == 0);
+
+            $target .= "/$s";
+
+            my $class = $targetObj->getAttribute($target, "CLASS");
+            next if ($class ne "CARD");
+
+            my $ruType = $targetObj->getAttribute($target, "RU_TYPE");
+
+            #If this segment is a card but not a FRU,
+            #remove it from the path.
+            if (not exists $RU_TYPES{$ruType}) {
+                my $segment = $targetObj->getInstanceName($target);
+                $item->{OBMC_NAME} =~ s/\b$segment-\d+\b\///;
+            }
+        }
+    }
 }
 
 
