@@ -31,6 +31,8 @@ sub getInventory
 
     pruneModuleCards($targetObj, \@inventory);
 
+    makeOBMCNames($targetObj, \@inventory);
+
     return @inventory;
 }
 
@@ -95,6 +97,55 @@ sub pruneModuleCards
                 splice(@$inventory, $i, 1);
                 last;
             }
+        }
+    }
+}
+
+
+#Makes the OpenBMC name for the targets in the inventory.
+#Removes unnecessary segments of the path name, renames
+#some segments to match standard conventions, and numbers
+#segments based on their position attribute.
+sub makeOBMCNames
+{
+    my ($targetObj, $inventory) = @_;
+
+    #Remove connector segments from the OBMC_NAME
+    removeConnectors($targetObj, $inventory);
+
+}
+
+
+#Removes connectors from the OBMC_NAME element.  Also
+#takes the POSITION value of the connector and adds it
+#to the card segment that plugs into the connector.
+#For example:
+#  /motherboard/card-conn-5/card-0 ->
+#  /motherobard/card-5
+sub removeConnectors
+{
+    my ($targetObj, $inventory) = @_;
+
+    #Find the connectors embedded in the segments
+    for my $item (@$inventory) {
+
+        #Split the target into segments, then start
+        #adding segments in to make new targets
+        my @segments = split('/', $item->{TARGET});
+        my $target = "";
+        for my $s (@segments) {
+            next if (length($s) == 0);
+
+            $target .= "/$s";
+            my $class = $targetObj->getAttribute($target, "CLASS");
+            next unless ($class eq "CONNECTOR");
+
+            my ($segment) = $target =~ /\b(\w+-\d+)$/;
+            my $pos = $targetObj->getAttribute($target, "POSITION");
+
+            #change /connector-11/card-2/ to /card-11/
+            $item->{OBMC_NAME} =~ s/\b$segment\/(\w+)-\d+/$1-$pos/;
+
         }
     }
 }
