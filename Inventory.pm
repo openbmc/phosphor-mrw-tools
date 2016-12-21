@@ -1,14 +1,64 @@
 package Inventory;
 
 use strict;
+use warnings;
 
+#Target types to always include in the inventory if present
+my %TYPES = (SYS => 1, NODE => 1, PROC => 1, BMC => 1, GPU => 1);
+
+#RU_TYPES of cards to include
+#FRU = field replaceable unit, CRU = customer replaceable unit
+my %RU_TYPES = (FRU => 1, CRU => 1);
+
+#Returns an array of hashes that represents the inventory
+#for a system.  The hash elements are:
+#TARGET:  The MRW target of the item
+#OBMC_NAME: The OpenBMC name for the item.  This is usually
+#           a simplified version of the target.
 sub getInventory
 {
     my $targetObj = shift;
     my @inventory;
 
+    if (ref($targetObj) ne "Targets") {
+        die "Invalid Targets object passed to getInventory\n";
+    }
+
+    findItems($targetObj, \@inventory);
+
     return @inventory;
 }
+
+
+#Finds the inventory targets in the MRW.
+#It selects them if the target's type is in %TYPES
+#or the target's RU_TYPE is in %RU_TYPES.
+#This will pick up FRUs and other chips like the BMC and processor.
+sub findItems
+{
+    my ($targetObj, $inventory) = @_;
+
+    for my $target (sort keys %{$targetObj->getAllTargets()}) {
+        my $type = "";
+        my $ruType = "";
+
+        if (!$targetObj->isBadAttribute($target, "TYPE")) {
+            $type = $targetObj->getAttribute($target, "TYPE");
+        }
+
+        if (!$targetObj->isBadAttribute($target, "RU_TYPE")) {
+            $ruType = $targetObj->getAttribute($target, "RU_TYPE");
+        }
+
+        if ((exists $TYPES{$type}) || (exists $RU_TYPES{$ruType})) {
+            my %item;
+            $item{TARGET} = $target;
+            $item{OBMC_NAME} = $target; #Will fixup later
+            push @$inventory, { %item };
+        }
+    }
+}
+
 
 1;
 
