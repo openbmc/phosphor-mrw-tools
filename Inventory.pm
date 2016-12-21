@@ -118,6 +118,17 @@ sub makeOBMCNames
 
     #Don't need card segments for non-FRUs
     removeNonFRUCardSegments($targetObj, $inventory);
+
+    #Certain parts have standard naming
+    renameSegmentWithType("PROC", "cpu", $targetObj, $inventory);
+    renameSegmentWithType("SYS", "system", $targetObj, $inventory);
+    renameSegmentWithType("NODE", "chassis", $targetObj, $inventory);
+
+    #Make sure the motherboard is called 'motherboard' in the OBMC_NAME.
+    #The only way to identify it is with its TARGET_TYPE,
+    #which is different than the regular type.
+    renameSegmentWithTargetType("card-motherboard", "motherboard",
+                                $targetObj, $inventory);
 }
 
 
@@ -191,6 +202,44 @@ sub removeConnectors
 }
 
 
+#Renames segments of the paths to the name passed in
+#based on the type of the segment.
+#For example:
+# renameSegmentWithType("PROC", "cpu", ...);
+# With a target of:
+#   motherboard-0/myp9proc-5/core-3
+# Where target motherboard-0/myp9proc-5 has a type
+# of PROC, gives:
+#   motherboard-0/cpu-5/core-3
+sub renameSegmentWithType
+{
+    my $type = shift @_;
+    my $newSegment = shift @_;
+    my $targetObj = shift @_;
+    my $inventory = shift @_;
+
+    #Find the targets for all the segments, and
+    #if their type matches what we're looking for, then
+    #save it so we can rename them later.
+    for my $item (@$inventory) {
+
+        my @segments = split('/', $item->{TARGET});
+        my $target = "";
+
+        for my $s (@segments) {
+            next if (length($s) == 0);
+
+            $target .= "/$s";
+            my $curType = $targetObj->getType($target);
+            next unless ($curType eq $type);
+
+            my $oldSegment = $targetObj->getInstanceName($target);
+            $item->{OBMC_NAME} =~ s/$oldSegment/$newSegment/;
+        }
+    }
+}
+
+
 #Removes the card portion of a module from OBMC_NAME.
 #For example, .../motherboard-0/module-1/proc-0 ->
 #.../motherboard-0/proc-1
@@ -212,6 +261,36 @@ sub removeModuleFromPath
 
         for my $name (keys %chipNames) {
             $item->{OBMC_NAME} =~ s/\w+-(\d+)\/$name(-\d+)*/$name-$1/;
+        }
+    }
+}
+
+
+#The same as renameSegmentWithType, but finds the segment
+#to rename by calling Targets::getTargetType() on it
+#instead of Targets::getType().
+sub renameSegmentWithTargetType
+{
+    my $type = shift;
+    my $newSegment = shift;
+    my $targetObj = shift;
+    my $inventory = shift;
+    my %segmentsToRename;
+
+    for my $item (@$inventory) {
+
+        my @segments = split('/', $item->{TARGET});
+        my $target = "";
+
+        for my $s (@segments) {
+            next if (length($s) == 0);
+
+            $target .= "/$s";
+            my $curType = $targetObj->getTargetType($target);
+            next unless ($curType eq $type);
+
+            my $oldSegment = $targetObj->getInstanceName($target);
+            $item->{OBMC_NAME} =~ s/$oldSegment/$newSegment/;
         }
     }
 }
