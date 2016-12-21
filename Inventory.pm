@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 #Target types to always include in the inventory if present
-my %TYPES = (SYS => 1, NODE => 1, PROC => 1, BMC => 1, GPU => 1);
+my %TYPES = (SYS => 1, NODE => 1, PROC => 1, BMC => 1, GPU => 1, CORE => 1);
 
 #RU_TYPES of cards to include
 #FRU = field replaceable unit, CRU = customer replaceable unit
@@ -119,6 +119,9 @@ sub makeOBMCNames
     #Don't need card segments for non-FRUs
     removeNonFRUCardSegments($targetObj, $inventory);
 
+    #Don't need to show the middle units between proc & core
+    removeIntermediateUnits($targetObj, $inventory);
+
     #Certain parts have standard naming
     renameSegmentWithType("PROC", "cpu", $targetObj, $inventory);
     renameSegmentWithType("SYS", "system", $targetObj, $inventory);
@@ -203,6 +206,37 @@ sub removeConnectors
             #change /connector-11/card-2/ to /card-11/
             $item->{OBMC_NAME} =~ s/\b$segment\/(\w+)-\d+/$1-$pos/;
 
+        }
+    }
+}
+
+
+#Units, typically cores, can be subunits of other subunits of
+#their parent chip.  We can remove all of these intermediate
+#units.  For example, cpu0/someunit1/someunit2/core3 ->
+#cpu0/core3.
+sub removeIntermediateUnits
+{
+    my ($targetObj, $inventory) = @_;
+    my @toRemove;
+
+    for my $item (@$inventory) {
+
+        my $class = $targetObj->getAttribute($item->{TARGET}, "CLASS");
+        next unless ($class eq "UNIT");
+
+        my $parent = $targetObj->getTargetParent($item->{TARGET});
+        $class = $targetObj->getAttribute($parent, "CLASS");
+
+        #Remove all of these intermediate units until we find
+        #something that isn't a unit (most likely a chip).
+        while ($class eq "UNIT") {
+
+            my $name = $targetObj->getInstanceName($parent);
+            $item->{OBMC_NAME} =~ s/$name(-)*(\d+)*\///;
+
+            $parent = $targetObj->getTargetParent($parent);
+            $class = $targetObj->getAttribute($parent, "CLASS");
         }
     }
 }
@@ -372,6 +406,8 @@ The inventory contains:
 =item * All targets of class CARD or CHIP that are FRUs.
 
 =item * All targets of type PROC
+
+=item * All targets of type CORE
 
 =item * All targets of type BMC
 
