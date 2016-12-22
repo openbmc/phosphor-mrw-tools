@@ -1,0 +1,231 @@
+---------------------------------------------------------------
+Target:  /sys-0
+Name:    /system
+---------------------------------------------------------------
+Target:  /sys-0/node-0
+Name:    /system/chassis
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0
+Name:    /system/chassis/motherboard
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/boxconn-6/boxelder-3
+Name:    /system/chassis/motherboard/boxelder
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/boxconn-6/boxelder-3/bmc-0
+Name:    /system/chassis/motherboard/boxelder/bmc
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/dimmconn-0/dimm-5
+Name:    /system/chassis/motherboard/dimm0
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/dimmconn-1/dimm-5
+Name:    /system/chassis/motherboard/dimm1
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/dimmconn-10/dimm-5
+Name:    /system/chassis/motherboard/dimm10
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/dimmconn-11/dimm-5
+Name:    /system/chassis/motherboard/dimm11
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/dimmconn-12/dimm-5
+Name:    /system/chassis/motherboard/dimm12
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/dimmconn-13/dimm-5
+Name:    /system/chassis/motherboard/dimm13
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/dimmconn-14/dimm-5
+Name:    /system/chassis/motherboard/dimm14
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/dimmconn-15/dimm-5
+Name:    /system/chassis/motherboard/dimm15
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/dimmconn-2/dimm-5
+Name:    /system/chassis/motherboard/dimm2
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/dimmconn-3/dimm-5
+Name:    /system/chassis/motherboard/dimm3
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/dimmconn-4/dimm-5
+Name:    /system/chassis/motherboard/dimm4
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/dimmconn-5/dimm-5
+Name:    /system/chassis/motherboard/dimm5
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/dimmconn-6/dimm-5
+Name:    /system/chassis/motherboard/dimm6
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/dimmconn-7/dimm-5
+Name:    /system/chassis/motherboard/dimm7
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/dimmconn-8/dimm-5
+Name:    /system/chassis/motherboard/dimm8
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/dimmconn-9/dimm-5
+Name:    /system/chassis/motherboard/dimm9
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-0/module-0/p9_proc_m
+Name:    /system/chassis/motherboard/cpu0
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-0/module-0/p9_proc_m/eq0/ex0/core0
+Name:    /system/chassis/motherboard/cpu0/core0
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-0/module-0/p9_proc_m/eq0/ex0/core1
+Name:    /system/chassis/motherboard/cpu0/core1
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-0/module-0/p9_proc_m/eq0/ex1/core2
+Name:    /system/chassis/motherboard/cpu0/core2
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-0/module-0/p9_proc_m/eq0/ex1/core3
+Name:    /system/chassis/motherboard/cpu0/core3
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-0/module-0/p9_proc_m/eq1/ex2/core4
+Name:    /system/chassis/motherboard/cpu0/core4
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-0/module-0/p9_proc_m/eq1/ex2/core5
+Name:    /system/chassis/motherboard/cpu0/core5
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-0/module-0/p9_proc_m/eq1/ex3/core6
+Name:    /system/chassis/motherboard/cpu0/core6
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-0/module-0/p9_proc_m/eq1/ex3/core7
+Name:    /system/chassis/motherboard/cpu0/core7
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-0/module-0/p9_proc_m/eq2/ex4/core8
+Name:    /system/chassis/motherboard/cpu0/core8
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-0/module-0/p9_proc_m/eq2/ex4/core9
+Name:    /system/chassis/motherboard/cpu0/core9
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-0/module-0/p9_proc_m/eq2/ex5/core10
+Name:    /system/chassis/motherboard/cpu0/core10
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-0/module-0/p9_proc_m/eq2/ex5/core11
+Name:    /system/chassis/motherboard/cpu0/core11
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-0/module-0/p9_proc_m/eq3/ex6/core12
+Name:    /system/chassis/motherboard/cpu0/core12
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-0/module-0/p9_proc_m/eq3/ex6/core13
+Name:    /system/chassis/motherboard/cpu0/core13
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-0/module-0/p9_proc_m/eq3/ex7/core14
+Name:    /system/chassis/motherboard/cpu0/core14
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-0/module-0/p9_proc_m/eq3/ex7/core15
+Name:    /system/chassis/motherboard/cpu0/core15
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-0/module-0/p9_proc_m/eq4/ex8/core16
+Name:    /system/chassis/motherboard/cpu0/core16
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-0/module-0/p9_proc_m/eq4/ex8/core17
+Name:    /system/chassis/motherboard/cpu0/core17
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-0/module-0/p9_proc_m/eq4/ex9/core18
+Name:    /system/chassis/motherboard/cpu0/core18
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-0/module-0/p9_proc_m/eq4/ex9/core19
+Name:    /system/chassis/motherboard/cpu0/core19
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-0/module-0/p9_proc_m/eq5/ex10/core20
+Name:    /system/chassis/motherboard/cpu0/core20
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-0/module-0/p9_proc_m/eq5/ex10/core21
+Name:    /system/chassis/motherboard/cpu0/core21
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-0/module-0/p9_proc_m/eq5/ex11/core22
+Name:    /system/chassis/motherboard/cpu0/core22
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-0/module-0/p9_proc_m/eq5/ex11/core23
+Name:    /system/chassis/motherboard/cpu0/core23
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-1/module-0/p9_proc_m
+Name:    /system/chassis/motherboard/cpu1
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-1/module-0/p9_proc_m/eq0/ex0/core0
+Name:    /system/chassis/motherboard/cpu1/core0
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-1/module-0/p9_proc_m/eq0/ex0/core1
+Name:    /system/chassis/motherboard/cpu1/core1
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-1/module-0/p9_proc_m/eq0/ex1/core2
+Name:    /system/chassis/motherboard/cpu1/core2
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-1/module-0/p9_proc_m/eq0/ex1/core3
+Name:    /system/chassis/motherboard/cpu1/core3
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-1/module-0/p9_proc_m/eq1/ex2/core4
+Name:    /system/chassis/motherboard/cpu1/core4
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-1/module-0/p9_proc_m/eq1/ex2/core5
+Name:    /system/chassis/motherboard/cpu1/core5
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-1/module-0/p9_proc_m/eq1/ex3/core6
+Name:    /system/chassis/motherboard/cpu1/core6
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-1/module-0/p9_proc_m/eq1/ex3/core7
+Name:    /system/chassis/motherboard/cpu1/core7
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-1/module-0/p9_proc_m/eq2/ex4/core8
+Name:    /system/chassis/motherboard/cpu1/core8
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-1/module-0/p9_proc_m/eq2/ex4/core9
+Name:    /system/chassis/motherboard/cpu1/core9
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-1/module-0/p9_proc_m/eq2/ex5/core10
+Name:    /system/chassis/motherboard/cpu1/core10
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-1/module-0/p9_proc_m/eq2/ex5/core11
+Name:    /system/chassis/motherboard/cpu1/core11
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-1/module-0/p9_proc_m/eq3/ex6/core12
+Name:    /system/chassis/motherboard/cpu1/core12
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-1/module-0/p9_proc_m/eq3/ex6/core13
+Name:    /system/chassis/motherboard/cpu1/core13
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-1/module-0/p9_proc_m/eq3/ex7/core14
+Name:    /system/chassis/motherboard/cpu1/core14
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-1/module-0/p9_proc_m/eq3/ex7/core15
+Name:    /system/chassis/motherboard/cpu1/core15
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-1/module-0/p9_proc_m/eq4/ex8/core16
+Name:    /system/chassis/motherboard/cpu1/core16
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-1/module-0/p9_proc_m/eq4/ex8/core17
+Name:    /system/chassis/motherboard/cpu1/core17
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-1/module-0/p9_proc_m/eq4/ex9/core18
+Name:    /system/chassis/motherboard/cpu1/core18
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-1/module-0/p9_proc_m/eq4/ex9/core19
+Name:    /system/chassis/motherboard/cpu1/core19
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-1/module-0/p9_proc_m/eq5/ex10/core20
+Name:    /system/chassis/motherboard/cpu1/core20
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-1/module-0/p9_proc_m/eq5/ex10/core21
+Name:    /system/chassis/motherboard/cpu1/core21
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-1/module-0/p9_proc_m/eq5/ex11/core22
+Name:    /system/chassis/motherboard/cpu1/core22
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/proc_socket-1/module-0/p9_proc_m/eq5/ex11/core23
+Name:    /system/chassis/motherboard/cpu1/core23
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/psconn-12/powersupply-9
+Name:    /system/chassis/motherboard/powersupply0
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/psconn-13/powersupply-10
+Name:    /system/chassis/motherboard/powersupply1
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/teakconn-7/teak-4/fanconn-10/fan-7
+Name:    /system/chassis/motherboard/fan2
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/teakconn-7/teak-4/fanconn-11/fan-8
+Name:    /system/chassis/motherboard/fan3
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/teakconn-7/teak-4/fanconn-8/fan-5
+Name:    /system/chassis/motherboard/fan0
+---------------------------------------------------------------
+Target:  /sys-0/node-0/motherboard-0/teakconn-7/teak-4/fanconn-9/fan-6
+Name:    /system/chassis/motherboard/fan1
