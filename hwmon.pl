@@ -1,14 +1,17 @@
 #!/usr/bin/env perl
 
 #Creates a configuration file for each hwmon sensor in the MRW
-#for use by phosphor-hwmon.  These configuration files contain
-#labels and thresholds for the hwmon features for that sensor.
+#for use by the phosphor-hwmon daemon.  These configuration files
+#contain labels and thresholds for the hwmon features for that sensor.
+#The files are created in subdirectories based on their device
+#tree paths.
 
 use strict;
 use warnings;
 
 use mrw::Targets;
 use Getopt::Long;
+use File::Path qw(make_path);
 
 use constant {
     I2C_TYPE => "i2c"
@@ -29,6 +32,8 @@ $g_targetObj->loadXML($serverwizFile);
 my $bmc = getBMCTarget();
 
 getI2CSensors($bmc, \@hwmon);
+
+makeConfFiles($bmc, \@hwmon);
 
 exit 0;
 
@@ -160,6 +165,117 @@ sub getHwmonUnits
     }
 
     return @units;
+}
+
+
+#Creates .conf files for each chip.
+sub makeConfFiles
+{
+    my ($bmc, $hwmon) = @_;
+
+    for my $entry (@$hwmon) {
+        printConfFile($bmc, $entry);
+    }
+}
+
+
+#Writes out a configuration file for a hwmon sensor, containing:
+#  LABEL_<feature> = <descriptive label>  (e.g. LABEL_temp1 = ambient)
+#  WARNHI_<feature> = <value> (e.g. WARNHI_temp1 = 99)
+#  WARNLO_<feature> = <value> (e.g. WARNLO_temp1 = 0)
+#  CRITHI_<feature> = <value> (e.g. CRITHI_temp1 = 100)
+#  CRITHI_<feature> = <value> (e.g. CRITLO_temp1 = -1)
+#
+#  The file is created in a subdirectory based on the chip's device
+#  tree path.
+sub printConfFile
+{
+    my ($bmc, $entry) = @_;
+    my $path = getConfFilePath($bmc, $entry);
+    my $name = $path . "/" . getConfFileName($entry);
+
+    make_path($path);
+
+    open(my $f, ">$name") or die "Could not open $name\n";
+
+    for my $feature (sort keys %{$entry->{hwmon}}) {
+        print $f "LABEL_$feature = \"$entry->{hwmon}{$feature}{label}\"\n";
+
+        #Thresholds are optional
+        if (exists $entry->{hwmon}{$feature}{warnhigh}) {
+            print $f "WARNHI_$feature = \"$entry->{hwmon}{$feature}{warnhigh}\"\n";
+        }
+        if (exists $entry->{hwmon}{$feature}{warnlow}) {
+            print $f "WARNLO_$feature = \"$entry->{hwmon}{$feature}{warnlow}\"\n";
+        }
+        if (exists $entry->{hwmon}{$feature}{crithigh}) {
+            print $f "CRITHI_$feature = \"$entry->{hwmon}{$feature}{crithigh}\"\n";
+        }
+        if (exists $entry->{hwmon}{$feature}{critlow}) {
+            print $f "CRITLO_$feature = \"$entry->{hwmon}{$feature}{critlow}\"\n";
+        }
+    }
+
+    close $f;
+}
+
+
+#Returns the chip's configuration file path.
+sub getConfFilePath
+{
+    my ($bmc, $entry) = @_;
+
+    my $mfgr = $g_targetObj->getAttribute($bmc, "MANUFACTURER");
+
+    #Unfortunately, because the conf file path is based on the
+    #device tree path which is tied to the internal chip structure,
+    #this has to be model specific.  Until proven wrong, I'm going
+    #to make an assumption that all ASPEED chips have the same path
+    #as so far all of the models I've seen do.
+    if ($mfgr eq "ASPEED") {
+        return getAspeedConfFilePath($entry);
+    }
+    else {
+        die "Unsupported BMC manufacturer $mfgr\n";
+    }
+}
+
+
+#Returns the relative path of the configuration file to create.
+#This path is based on the path of the chip in the device tree.
+#An example path is  ahb/apb/i2c@1e78a000/i2c-bus@400/
+sub getAspeedConfFilePath
+{
+    my ($entry) = @_;
+    my $path;
+
+    if ($entry->{type} eq I2C_TYPE) {
+
+        #ASPEED requires the reg base address & offset fields
+        if ((not exists $entry->{regBaseAddress}) ||
+            (not exists $entry->{regOffset})) {
+            die "Missing regBaseAddress or regOffset attributes " .
+                "in the I2C master unit XML\n";
+        }
+
+        $path = "ahb/apb/i2c\@$entry->{regBaseAddress}/i2c-bus@" .
+                "$entry->{regOffset}";
+    }
+    else {
+        #TODO: FSI support for the OCC when known
+        die "HWMON bus type $entry->{type} not implemented yet\n";
+    }
+
+    return $path;
+}
+
+
+#Returns the name to use for the conf file:
+#  <name>@<addr>.conf  (e.g. rtc@68.conf)
+sub getConfFileName
+{
+    my ($entry) = @_;
+    return "$entry->{name}\@$entry->{addr}.conf";
 }
 
 
