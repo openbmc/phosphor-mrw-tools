@@ -30,6 +30,8 @@ my $bmc = getBMCTarget();
 
 getI2CSensors($bmc, \@hwmon);
 
+makeConfFiles($bmc, \@hwmon);
+
 exit 0;
 
 
@@ -160,6 +162,112 @@ sub getHwmonUnits
     }
 
     return @units;
+}
+
+
+#Creates .conf files for each chip.
+sub makeConfFiles
+{
+    my ($bmc, $hwmon) = @_;
+
+    for my $entry (@$hwmon) {
+        printConfFile($bmc, $entry);
+    }
+}
+
+
+#Writes out a configuration file for a hwmon sensor, containing:
+#  LABEL_<feature> = <descriptive label>  (e.g. LABEL_temp1 = ambient)
+#  WARNHI_<feature> = <value> (e.g. WARNHI_temp1 = 99)
+#  WARNLO_<feature> = <value> (e.g. WARNLO_temp1 = 0)
+#  CRITHI_<feature> = <value> (e.g. CRITHI_temp1 = 100)
+#  CRITHI_<feature> = <value> (e.g. CRITLO_temp1 = -1)
+sub printConfFile
+{
+    my ($bmc, $entry) = @_;
+    my $fileName = getConfFileName($bmc, $entry);
+
+    open(my $f, ">$fileName") or die "Could not open $fileName\n";
+
+    for my $feature (sort keys %{$entry->{hwmon}}) {
+        print $f "LABEL_$feature = $entry->{hwmon}{$feature}{label}\n";
+
+        #Thresholds are optional
+        if (exists $entry->{hwmon}{$feature}{warnhigh}) {
+            print $f "WARNHI_$feature = $entry->{hwmon}{$feature}{warnhigh}\n";
+        }
+        if (exists $entry->{hwmon}{$feature}{warnlow}) {
+            print $f "WARNLO_$feature = $entry->{hwmon}{$feature}{warnlow}\n";
+        }
+        if (exists $entry->{hwmon}{$feature}{crithigh}) {
+            print $f "CRITHI_$feature = $entry->{hwmon}{$feature}{crithigh}\n";
+        }
+        if (exists $entry->{hwmon}{$feature}{critlow}) {
+            print $f "CRITLO_$feature = $entry->{hwmon}{$feature}{critlow}\n";
+        }
+    }
+
+    close $f;
+}
+
+
+#Returns the name to use for the chip's configuration file.
+sub getConfFileName
+{
+    my ($bmc, $entry) = @_;
+
+    my $mfgr = $g_targetObj->getAttribute($bmc, "MANUFACTURER");
+
+    #Unfortunately, because the conf file name is based on the
+    #device tree path which is tied to the internal chip structure,
+    #this has to be model specific.  Until proven wrong, I'm going
+    #to make an assumption that all ASPEED chips have the same path
+    #as so far all of the models I've seen do.
+    if ($mfgr eq "ASPEED") {
+        return getAspeedConfFileName($entry);
+    }
+    else {
+        die "Unsupported BMC manufacturer $mfgr\n";
+    }
+}
+
+
+#Returns the configuration filename for the chip with an ASPEED BMC.
+sub getAspeedConfFileName
+{
+    my ($entry) = @_;
+    my $name;
+
+    #The file name is an escaped version of the OF_FULLNAME udev variable
+    #which looks like /ahb/apb/i2c@1e78a000/i2c-bus@400/ucd90160@64.
+
+    if ($entry->{type} eq I2C_TYPE) {
+
+        #ASPEED requires the reg base address & offset fields
+        if ((not exists $entry->{regBaseAddress}) ||
+            (not exists $entry->{regOffset})) {
+            die "Missing regBaseAddress or regOffset attributes " .
+                "in the I2C master unit XML\n";
+        }
+
+        my $baseAddr = $entry->{regBaseAddress};
+        my $offset = $entry->{regOffset};
+        my $chip = $entry->{name};
+        my $addr = $entry->{addr};
+
+        #Start out with the regular version, and then escape below
+        $name = "/ahb/apb/i2c@" . "$baseAddr/i2c-bus@" .
+                "$offset/$chip@" . "$addr.conf";
+        $name =~ s/-/\\x2d/g; #'-' -> '\x2d'
+        $name =~ s/@/\\x40/g; #'@' -> '\x40'
+        $name =~ s/\//-/g;    #'/' -> '-'
+    }
+    else {
+        #TODO: FSI support for the OCC when known
+        die "HWMON bus type $entry->{type} not implemented yet\n";
+    }
+
+    return $name;
 }
 
 
