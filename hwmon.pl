@@ -55,8 +55,93 @@ sub getI2CSensors
         my %entry;
         $entry{type} = I2C_TYPE;
         $entry{name} = lc $g_targetObj->getInstanceName($chip);
+        getHwmonAttributes(\@hwmonUnits, \%entry);
+        getI2CAttributes($i2c, \%entry);
 
         push @$hwmon, { %entry };
+    }
+}
+
+
+#Reads the hwmon related attributes from the HWMON_FEATURE
+#complex attribute and adds them to the hash.
+sub getHwmonAttributes
+{
+    my ($units, $entry) = @_;
+    my %hwmonFeatures;
+
+    for my $unit (@$units) {
+
+        #The hwmon name, like 'in1', 'temp1', 'fan1', etc
+        my $hwmon = $g_targetObj->getAttributeField($unit,
+                                                    "HWMON_FEATURE",
+                                                    "HWMON_NAME");
+
+        #The useful name for this feature, like 'ambient'
+        my $name = $g_targetObj->getAttributeField($unit,
+                                                   "HWMON_FEATURE",
+                                                   "DESCRIPTIVE_NAME");
+        $hwmonFeatures{$hwmon}{label} = $name;
+
+        #Thresholds are optional, ignore if NA
+        my $warnHigh = $g_targetObj->getAttributeField($unit,
+                                                       "HWMON_FEATURE",
+                                                       "WARN_HIGH");
+        if (($warnHigh ne "") && ($warnHigh ne "NA")) {
+            $hwmonFeatures{$hwmon}{warnhigh} = $warnHigh;
+        }
+
+        my $warnLow = $g_targetObj->getAttributeField($unit,
+                                                      "HWMON_FEATURE",
+                                                      "WARN_LOW");
+        if (($warnLow ne "") && ($warnLow ne "NA")) {
+            $hwmonFeatures{$hwmon}{warnlow} = $warnLow;
+        }
+
+        my $critHigh = $g_targetObj->getAttributeField($unit,
+                                                       "HWMON_FEATURE",
+                                                       "CRIT_HIGH");
+        if (($critHigh ne "") && ($critHigh ne "NA")) {
+            $hwmonFeatures{$hwmon}{crithigh} = $critHigh;
+        }
+
+        my $critLow = $g_targetObj->getAttributeField($unit,
+                                                      "HWMON_FEATURE",
+                                                      "CRIT_LOW");
+        if (($critLow ne "") && ($critHigh ne "NA")) {
+            $hwmonFeatures{$hwmon}{critlow} = $critLow;
+        }
+    }
+
+    $entry->{hwmon} = { %hwmonFeatures };
+}
+
+
+#Reads the I2C attributes for the chip and adds them to the hash.
+#This includes the i2C address, and register base address and
+#offset for the I2C bus the chip is on.
+sub getI2CAttributes
+{
+    my ($i2c, $entry) = @_;
+
+    #The address comes from the destination unit, and needs
+    #to be the 7 bit value in hex without the 0x.
+    my $addr = $g_targetObj->getAttribute($i2c->{DEST}, "I2C_ADDRESS");
+    $addr = hex($addr) >> 1;
+    $entry->{addr} = sprintf("%x", $addr);
+
+    #The reg base address and offset may be optional depending on
+    #the BMC chip type.  We'll check later if it's required but missing.
+    if (!$g_targetObj->isBadAttribute($i2c->{SOURCE}, "REG_BASE_ADDRESS")) {
+        my $addr = $g_targetObj->getAttribute($i2c->{SOURCE},
+                                              "REG_BASE_ADDRESS");
+        $entry->{regBaseAddress} = sprintf("%x", hex($addr));
+    }
+
+    if (!$g_targetObj->isBadAttribute($i2c->{SOURCE}, "REG_OFFSET")) {
+        my $offset = $g_targetObj->getAttribute($i2c->{SOURCE},
+                                                "REG_OFFSET");
+        $entry->{regOffset} = sprintf("%x", hex($offset));
     }
 }
 
