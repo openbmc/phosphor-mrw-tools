@@ -45,12 +45,12 @@ my %types;
 my @inventory = Inventory::getInventory($targetObj);
 for my $item (@inventory) {
     my $isFru = 0, my $fruID = 0, my $fruType = "";
-    #Fetch the FRU ID.
+    #Fetch the FRUID.
     if (!$targetObj->isBadAttribute($item->{TARGET}, "FRU_ID")) {
         $fruID = $targetObj->getAttribute($item->{TARGET}, "FRU_ID");
         $isFru = 1;
     }
-    # Fetch the FRU Type.
+    #Fetch the FRU Type.
     if (!$targetObj->isBadAttribute($item->{TARGET}, "TYPE")) {
         $fruType = $targetObj->getAttribute($item->{TARGET}, "TYPE");
     }
@@ -65,10 +65,70 @@ for my $item (@inventory) {
 
     writeToFile($fruType,$item->{OBMC_NAME},$fruTypeConfig,$fh);
 
+    # Fetch all the children for this inventory target,It might happen the child is fru or non fru
+    # Following condition to be true for fetching the associated non fru devices.
+    # -it should be non fru.
+    # -type of the fru is in the interested types.
+    # - the parent of the child should be same as inventory target.
+
+    foreach my $child ($targetObj->getAllTargetChildren($item->{TARGET})) {
+        $fruType = $targetObj->getAttribute($child, "TYPE");
+
+        if (!$targetObj->isBadAttribute($child, "FRU_ID")) {
+            #i.e this child is a fru,we are interrested in non fru devices
+            next;
+        }
+
+        #Fetch the Fru Type
+        if (!$targetObj->isBadAttribute($child, "TYPE")) {
+            $fruType = $targetObj->getAttribute($child, "TYPE");
+        }
+
+        # check whether this fru type is in interested fru types.
+        if (not exists $types{$fruType}) {
+            next;
+        }
+
+        # find the parent fru of this child.
+        my $parent = $targetObj->getTargetParent($child);
+        while ($parent ne ($item->{TARGET})) {
+            $parent = $targetObj->getTargetParent($parent);
+            if (!$targetObj->isBadAttribute($parent, "FRU_ID")) {
+                last;
+            }
+
+        }
+        #if parent of the child is not equal to the item->target
+        #i.e some other fru is parent of this child.
+        if ( $parent ne ($item->{TARGET}) ){
+            next;
+        }
+
+        printDebug("     ".$child);
+        printDebug("     Type:".$fruType );
+        my $childObmcName = getObmcName(\@inventory, $child);
+        writeToFile($fruType, $childObmcName, $fruTypeConfig, $fh);
+    }
 }
 close $fh;
 
 #------------------------------------END OF MAIN-----------------------
+
+# Map an MRW name to corresponding OBMC name
+sub getObmcName
+{
+    my $inventory = $_[0]; # Inventory items
+    my $target = $_[1]; # MRW Target name
+    for my $item (@inventory)
+    {
+        if($item->{TARGET} eq $target)
+        {
+            return $item->{OBMC_NAME};
+        }
+    }
+    return undef;
+}
+
 
 #Get the metdata for the incoming frutype from the loaded config file.
 #Write the FRU data into the output file
