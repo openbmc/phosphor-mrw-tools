@@ -1,0 +1,482 @@
+1:
+  /system:
+    xyz.openbmc_project.Inventory.Decorator.Replaceable:
+      FieldReplaceable:
+        Value: True
+    xyz.openbmc_project.Inventory.Revision:
+      Version:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Version
+    xyz.openbmc_project.Inventory.Decorator.Asset:
+      PartNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Part Number
+      SerialNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Serial Number
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+    xyz.openbmc_project.Inventory.Item:
+      Present:
+        Value: True
+2:
+  /system/chassis:
+    xyz.openbmc_project.Inventory.Item:
+      Present:
+        Value: True
+    xyz.openbmc_project.Inventory.Decorator.Asset:
+      PartNumber:
+        FRUSection: CHASSIS
+        IPMIPropertyName: Part Number
+      SerialNumber:
+        FRUSection: CHASSIS
+        IPMIPropertyName: Serial Number
+    xyz.openbmc_project.Inventory.Decorator.Replaceable:
+      FieldReplaceable:
+        Value: True
+4:
+  /system/chassis/motherboard/dimm0:
+    xyz.openbmc_project.Inventory.Decorator.Asset:
+      PartNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Part Number
+      SerialNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Serial Number
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+    xyz.openbmc_project.Inventory.Item:
+      Present:
+        Value: True
+    xyz.openbmc_project.Inventory.Revision:
+      Version:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Version
+    xyz.openbmc_project.Inventory.Decorator.Replaceable:
+      FieldReplaceable:
+        Value: True
+4:
+  /system/chassis/motherboard/dimm1:
+    xyz.openbmc_project.Inventory.Decorator.Asset:
+      PartNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Part Number
+      SerialNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Serial Number
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+    xyz.openbmc_project.Inventory.Item:
+      Present:
+        Value: True
+    xyz.openbmc_project.Inventory.Revision:
+      Version:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Version
+    xyz.openbmc_project.Inventory.Decorator.Replaceable:
+      FieldReplaceable:
+        Value: True
+4:
+  /system/chassis/motherboard/dimm10:
+    xyz.openbmc_project.Inventory.Decorator.Asset:
+      PartNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Part Number
+      SerialNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Serial Number
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+    xyz.openbmc_project.Inventory.Item:
+      Present:
+        Value: True
+    xyz.openbmc_project.Inventory.Revision:
+      Version:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Version
+    xyz.openbmc_project.Inventory.Decorator.Replaceable:
+      FieldReplaceable:
+        Value: True
+4:
+  /system/chassis/motherboard/dimm11:
+    xyz.openbmc_project.Inventory.Decorator.Asset:
+      PartNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Part Number
+      SerialNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Serial Number
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+    xyz.openbmc_project.Inventory.Item:
+      Present:
+        Value: True
+    xyz.openbmc_project.Inventory.Revision:
+      Version:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Version
+    xyz.openbmc_project.Inventory.Decorator.Replaceable:
+      FieldReplaceable:
+        Value: True
+4:
+  /system/chassis/motherboard/dimm12:
+    xyz.openbmc_project.Inventory.Decorator.Asset:
+      PartNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Part Number
+      SerialNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Serial Number
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+    xyz.openbmc_project.Inventory.Item:
+      Present:
+        Value: True
+    xyz.openbmc_project.Inventory.Revision:
+      Version:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Version
+    xyz.openbmc_project.Inventory.Decorator.Replaceable:
+      FieldReplaceable:
+        Value: True
+4:
+  /system/chassis/motherboard/dimm13:
+    xyz.openbmc_project.Inventory.Decorator.Asset:
+      PartNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Part Number
+      SerialNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Serial Number
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+    xyz.openbmc_project.Inventory.Item:
+      Present:
+        Value: True
+    xyz.openbmc_project.Inventory.Revision:
+      Version:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Version
+    xyz.openbmc_project.Inventory.Decorator.Replaceable:
+      FieldReplaceable:
+        Value: True
+4:
+  /system/chassis/motherboard/dimm14:
+    xyz.openbmc_project.Inventory.Decorator.Asset:
+      PartNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Part Number
+      SerialNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Serial Number
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+    xyz.openbmc_project.Inventory.Item:
+      Present:
+        Value: True
+    xyz.openbmc_project.Inventory.Revision:
+      Version:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Version
+    xyz.openbmc_project.Inventory.Decorator.Replaceable:
+      FieldReplaceable:
+        Value: True
+4:
+  /system/chassis/motherboard/dimm15:
+    xyz.openbmc_project.Inventory.Decorator.Asset:
+      PartNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Part Number
+      SerialNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Serial Number
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+    xyz.openbmc_project.Inventory.Item:
+      Present:
+        Value: True
+    xyz.openbmc_project.Inventory.Revision:
+      Version:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Version
+    xyz.openbmc_project.Inventory.Decorator.Replaceable:
+      FieldReplaceable:
+        Value: True
+4:
+  /system/chassis/motherboard/dimm2:
+    xyz.openbmc_project.Inventory.Decorator.Asset:
+      PartNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Part Number
+      SerialNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Serial Number
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+    xyz.openbmc_project.Inventory.Item:
+      Present:
+        Value: True
+    xyz.openbmc_project.Inventory.Revision:
+      Version:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Version
+    xyz.openbmc_project.Inventory.Decorator.Replaceable:
+      FieldReplaceable:
+        Value: True
+4:
+  /system/chassis/motherboard/dimm3:
+    xyz.openbmc_project.Inventory.Decorator.Asset:
+      PartNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Part Number
+      SerialNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Serial Number
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+    xyz.openbmc_project.Inventory.Item:
+      Present:
+        Value: True
+    xyz.openbmc_project.Inventory.Revision:
+      Version:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Version
+    xyz.openbmc_project.Inventory.Decorator.Replaceable:
+      FieldReplaceable:
+        Value: True
+4:
+  /system/chassis/motherboard/dimm4:
+    xyz.openbmc_project.Inventory.Decorator.Asset:
+      PartNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Part Number
+      SerialNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Serial Number
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+    xyz.openbmc_project.Inventory.Item:
+      Present:
+        Value: True
+    xyz.openbmc_project.Inventory.Revision:
+      Version:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Version
+    xyz.openbmc_project.Inventory.Decorator.Replaceable:
+      FieldReplaceable:
+        Value: True
+4:
+  /system/chassis/motherboard/dimm5:
+    xyz.openbmc_project.Inventory.Decorator.Asset:
+      PartNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Part Number
+      SerialNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Serial Number
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+    xyz.openbmc_project.Inventory.Item:
+      Present:
+        Value: True
+    xyz.openbmc_project.Inventory.Revision:
+      Version:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Version
+    xyz.openbmc_project.Inventory.Decorator.Replaceable:
+      FieldReplaceable:
+        Value: True
+4:
+  /system/chassis/motherboard/dimm6:
+    xyz.openbmc_project.Inventory.Decorator.Asset:
+      PartNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Part Number
+      SerialNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Serial Number
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+    xyz.openbmc_project.Inventory.Item:
+      Present:
+        Value: True
+    xyz.openbmc_project.Inventory.Revision:
+      Version:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Version
+    xyz.openbmc_project.Inventory.Decorator.Replaceable:
+      FieldReplaceable:
+        Value: True
+4:
+  /system/chassis/motherboard/dimm7:
+    xyz.openbmc_project.Inventory.Decorator.Asset:
+      PartNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Part Number
+      SerialNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Serial Number
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+    xyz.openbmc_project.Inventory.Item:
+      Present:
+        Value: True
+    xyz.openbmc_project.Inventory.Revision:
+      Version:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Version
+    xyz.openbmc_project.Inventory.Decorator.Replaceable:
+      FieldReplaceable:
+        Value: True
+4:
+  /system/chassis/motherboard/dimm8:
+    xyz.openbmc_project.Inventory.Decorator.Asset:
+      PartNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Part Number
+      SerialNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Serial Number
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+    xyz.openbmc_project.Inventory.Item:
+      Present:
+        Value: True
+    xyz.openbmc_project.Inventory.Revision:
+      Version:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Version
+    xyz.openbmc_project.Inventory.Decorator.Replaceable:
+      FieldReplaceable:
+        Value: True
+4:
+  /system/chassis/motherboard/dimm9:
+    xyz.openbmc_project.Inventory.Decorator.Asset:
+      PartNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Part Number
+      SerialNumber:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Serial Number
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+    xyz.openbmc_project.Inventory.Item:
+      Present:
+        Value: True
+    xyz.openbmc_project.Inventory.Revision:
+      Version:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Version
+    xyz.openbmc_project.Inventory.Decorator.Replaceable:
+      FieldReplaceable:
+        Value: True
+3:
+  /system/chassis/motherboard/cpu0:
+    xyz.openbmc_project.Inventory.Decorator.Replaceable:
+      FieldReplaceable:
+        Value: True
+    xyz.openbmc_project.Inventory.Item:
+      Present:
+        Value: True
+    xyz.openbmc_project.Inventory.Decorator.Asset:
+      Manufacturer:
+        FRUSection: BOARD
+        IPMIPropertyName: Manufacturer
+      BuildDate:
+        FRUSection: BOARD
+        IPMIPropertyName: Mfg Date
+      PartNumber:
+        FRUSection: BOARD
+        IPMIPropertyName: Part Number
+      SerialNumber:
+        FRUSection: BOARD
+        IPMIPropertyName: Serial Number
+3:
+  /system/chassis/motherboard/cpu1:
+    xyz.openbmc_project.Inventory.Decorator.Replaceable:
+      FieldReplaceable:
+        Value: True
+    xyz.openbmc_project.Inventory.Item:
+      Present:
+        Value: True
+    xyz.openbmc_project.Inventory.Decorator.Asset:
+      Manufacturer:
+        FRUSection: BOARD
+        IPMIPropertyName: Manufacturer
+      BuildDate:
+        FRUSection: BOARD
+        IPMIPropertyName: Mfg Date
+      PartNumber:
+        FRUSection: BOARD
+        IPMIPropertyName: Part Number
+      SerialNumber:
+        FRUSection: BOARD
+        IPMIPropertyName: Serial Number
