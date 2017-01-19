@@ -60,6 +60,13 @@ for my $item (@inventory) {
 
     printDebug ("FRUID => $fruID, FRUType => $fruType, ObjectPath => $item->{OBMC_NAME}");
 
+    # special handling for chassis as the chassis info area can come with any fruid.
+    # so we need to get the meta data for it thats why we are giving special fruid
+    # for chassis.
+    if ($fruType eq 'NODE') {
+        $fruID = 9999;
+    }
+
     print $fh $fruID.":";
     print $fh "\n";
 
