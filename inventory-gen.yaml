@@ -1,8 +1,15 @@
 1:
   /system:
+    xyz.openbmc_project.Inventory.Decorator.Replaceable:
+      FieldReplaceable:
+        Value: True
     xyz.openbmc_project.Inventory.Item:
       Present:
         Value: True
+    xyz.openbmc_project.Inventory.Revision:
+      Version:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Version
     xyz.openbmc_project.Inventory.Decorator.Asset:
       SerialNumber:
         FRUSection: PRODUCT
@@ -16,28 +23,21 @@
       PartNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Part Number
-    xyz.openbmc_project.Inventory.Revision:
-      Version:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Version
-    xyz.openbmc_project.Inventory.Decorator.Replaceable:
-      FieldReplaceable:
-        Value: True
-2:
+9999:
   /system/chassis:
-    xyz.openbmc_project.Inventory.Decorator.Asset:
-      PartNumber:
-        FRUSection: CHASSIS
-        IPMIPropertyName: Part Number
-      SerialNumber:
-        FRUSection: CHASSIS
-        IPMIPropertyName: Serial Number
-    xyz.openbmc_project.Inventory.Decorator.Replaceable:
-      FieldReplaceable:
-        Value: True
     xyz.openbmc_project.Inventory.Item:
       Present:
         Value: True
+    xyz.openbmc_project.Inventory.Decorator.Replaceable:
+      FieldReplaceable:
+        Value: True
+    xyz.openbmc_project.Inventory.Decorator.Asset:
+      SerialNumber:
+        FRUSection: CHASSIS
+        IPMIPropertyName: Serial Number
+      PartNumber:
+        FRUSection: CHASSIS
+        IPMIPropertyName: Part Number
 4:
   /system/chassis/motherboard/dimm0:
     xyz.openbmc_project.Inventory.Item:
@@ -47,18 +47,18 @@
       FieldReplaceable:
         Value: True
     xyz.openbmc_project.Inventory.Decorator.Asset:
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
       PartNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Part Number
       SerialNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Serial Number
-      BuildDate:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Mfg Date
-      Manufacturer:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Manufacturer
     xyz.openbmc_project.Inventory.Revision:
       Version:
         FRUSection: PRODUCT
@@ -72,18 +72,18 @@
       FieldReplaceable:
         Value: True
     xyz.openbmc_project.Inventory.Decorator.Asset:
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
       PartNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Part Number
       SerialNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Serial Number
-      BuildDate:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Mfg Date
-      Manufacturer:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Manufacturer
     xyz.openbmc_project.Inventory.Revision:
       Version:
         FRUSection: PRODUCT
@@ -97,18 +97,18 @@
       FieldReplaceable:
         Value: True
     xyz.openbmc_project.Inventory.Decorator.Asset:
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
       PartNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Part Number
       SerialNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Serial Number
-      BuildDate:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Mfg Date
-      Manufacturer:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Manufacturer
     xyz.openbmc_project.Inventory.Revision:
       Version:
         FRUSection: PRODUCT
@@ -122,18 +122,18 @@
       FieldReplaceable:
         Value: True
     xyz.openbmc_project.Inventory.Decorator.Asset:
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
       PartNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Part Number
       SerialNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Serial Number
-      BuildDate:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Mfg Date
-      Manufacturer:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Manufacturer
     xyz.openbmc_project.Inventory.Revision:
       Version:
         FRUSection: PRODUCT
@@ -147,18 +147,18 @@
       FieldReplaceable:
         Value: True
     xyz.openbmc_project.Inventory.Decorator.Asset:
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
       PartNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Part Number
       SerialNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Serial Number
-      BuildDate:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Mfg Date
-      Manufacturer:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Manufacturer
     xyz.openbmc_project.Inventory.Revision:
       Version:
         FRUSection: PRODUCT
@@ -172,18 +172,18 @@
       FieldReplaceable:
         Value: True
     xyz.openbmc_project.Inventory.Decorator.Asset:
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
       PartNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Part Number
       SerialNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Serial Number
-      BuildDate:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Mfg Date
-      Manufacturer:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Manufacturer
     xyz.openbmc_project.Inventory.Revision:
       Version:
         FRUSection: PRODUCT
@@ -197,18 +197,18 @@
       FieldReplaceable:
         Value: True
     xyz.openbmc_project.Inventory.Decorator.Asset:
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
       PartNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Part Number
       SerialNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Serial Number
-      BuildDate:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Mfg Date
-      Manufacturer:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Manufacturer
     xyz.openbmc_project.Inventory.Revision:
       Version:
         FRUSection: PRODUCT
@@ -222,18 +222,18 @@
       FieldReplaceable:
         Value: True
     xyz.openbmc_project.Inventory.Decorator.Asset:
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
       PartNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Part Number
       SerialNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Serial Number
-      BuildDate:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Mfg Date
-      Manufacturer:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Manufacturer
     xyz.openbmc_project.Inventory.Revision:
       Version:
         FRUSection: PRODUCT
@@ -247,18 +247,18 @@
       FieldReplaceable:
         Value: True
     xyz.openbmc_project.Inventory.Decorator.Asset:
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
       PartNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Part Number
       SerialNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Serial Number
-      BuildDate:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Mfg Date
-      Manufacturer:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Manufacturer
     xyz.openbmc_project.Inventory.Revision:
       Version:
         FRUSection: PRODUCT
@@ -272,18 +272,18 @@
       FieldReplaceable:
         Value: True
     xyz.openbmc_project.Inventory.Decorator.Asset:
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
       PartNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Part Number
       SerialNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Serial Number
-      BuildDate:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Mfg Date
-      Manufacturer:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Manufacturer
     xyz.openbmc_project.Inventory.Revision:
       Version:
         FRUSection: PRODUCT
@@ -297,18 +297,18 @@
       FieldReplaceable:
         Value: True
     xyz.openbmc_project.Inventory.Decorator.Asset:
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
       PartNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Part Number
       SerialNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Serial Number
-      BuildDate:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Mfg Date
-      Manufacturer:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Manufacturer
     xyz.openbmc_project.Inventory.Revision:
       Version:
         FRUSection: PRODUCT
@@ -322,18 +322,18 @@
       FieldReplaceable:
         Value: True
     xyz.openbmc_project.Inventory.Decorator.Asset:
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
       PartNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Part Number
       SerialNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Serial Number
-      BuildDate:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Mfg Date
-      Manufacturer:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Manufacturer
     xyz.openbmc_project.Inventory.Revision:
       Version:
         FRUSection: PRODUCT
@@ -347,18 +347,18 @@
       FieldReplaceable:
         Value: True
     xyz.openbmc_project.Inventory.Decorator.Asset:
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
       PartNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Part Number
       SerialNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Serial Number
-      BuildDate:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Mfg Date
-      Manufacturer:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Manufacturer
     xyz.openbmc_project.Inventory.Revision:
       Version:
         FRUSection: PRODUCT
@@ -372,18 +372,18 @@
       FieldReplaceable:
         Value: True
     xyz.openbmc_project.Inventory.Decorator.Asset:
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
       PartNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Part Number
       SerialNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Serial Number
-      BuildDate:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Mfg Date
-      Manufacturer:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Manufacturer
     xyz.openbmc_project.Inventory.Revision:
       Version:
         FRUSection: PRODUCT
@@ -397,18 +397,18 @@
       FieldReplaceable:
         Value: True
     xyz.openbmc_project.Inventory.Decorator.Asset:
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
       PartNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Part Number
       SerialNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Serial Number
-      BuildDate:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Mfg Date
-      Manufacturer:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Manufacturer
     xyz.openbmc_project.Inventory.Revision:
       Version:
         FRUSection: PRODUCT
@@ -422,42 +422,42 @@
       FieldReplaceable:
         Value: True
     xyz.openbmc_project.Inventory.Decorator.Asset:
+      Manufacturer:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Manufacturer
+      BuildDate:
+        FRUSection: PRODUCT
+        IPMIPropertyName: Mfg Date
       PartNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Part Number
       SerialNumber:
         FRUSection: PRODUCT
         IPMIPropertyName: Serial Number
-      BuildDate:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Mfg Date
-      Manufacturer:
-        FRUSection: PRODUCT
-        IPMIPropertyName: Manufacturer
     xyz.openbmc_project.Inventory.Revision:
       Version:
         FRUSection: PRODUCT
         IPMIPropertyName: Version
 3:
   /system/chassis/motherboard/cpu0:
-    xyz.openbmc_project.Inventory.Item:
-      Present:
-        Value: True
     xyz.openbmc_project.Inventory.Decorator.Asset:
-      PartNumber:
-        FRUSection: BOARD
-        IPMIPropertyName: Part Number
-      SerialNumber:
-        FRUSection: BOARD
-        IPMIPropertyName: Serial Number
       BuildDate:
         FRUSection: BOARD
         IPMIPropertyName: Mfg Date
       Manufacturer:
         FRUSection: BOARD
         IPMIPropertyName: Manufacturer
+      PartNumber:
+        FRUSection: BOARD
+        IPMIPropertyName: Part Number
+      SerialNumber:
+        FRUSection: BOARD
+        IPMIPropertyName: Serial Number
     xyz.openbmc_project.Inventory.Decorator.Replaceable:
       FieldReplaceable:
+        Value: True
+    xyz.openbmc_project.Inventory.Item:
+      Present:
         Value: True
   /sys-0/node-0/motherboard-0/proc_socket-0/module-0/p9_proc_m/eq0/ex0/core0:
     xyz.openbmc_project.Inventory.Decorator.Replaceable:
@@ -629,24 +629,24 @@
         Value: True
 3:
   /system/chassis/motherboard/cpu1:
-    xyz.openbmc_project.Inventory.Item:
-      Present:
-        Value: True
     xyz.openbmc_project.Inventory.Decorator.Asset:
-      PartNumber:
-        FRUSection: BOARD
-        IPMIPropertyName: Part Number
-      SerialNumber:
-        FRUSection: BOARD
-        IPMIPropertyName: Serial Number
       BuildDate:
         FRUSection: BOARD
         IPMIPropertyName: Mfg Date
       Manufacturer:
         FRUSection: BOARD
         IPMIPropertyName: Manufacturer
+      PartNumber:
+        FRUSection: BOARD
+        IPMIPropertyName: Part Number
+      SerialNumber:
+        FRUSection: BOARD
+        IPMIPropertyName: Serial Number
     xyz.openbmc_project.Inventory.Decorator.Replaceable:
       FieldReplaceable:
+        Value: True
+    xyz.openbmc_project.Inventory.Item:
+      Present:
         Value: True
   /sys-0/node-0/motherboard-0/proc_socket-1/module-0/p9_proc_m/eq0/ex0/core0:
     xyz.openbmc_project.Inventory.Decorator.Replaceable:
