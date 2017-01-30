@@ -156,18 +156,17 @@ sub getChosen
     }
     %chosen = %{ $g_configuration{chosen} };
 
-    #Check for allowed entries.  Empty is OK.
     foreach my $key (keys %chosen) {
-        my $found = 0;
-        foreach my $good (@allowed) {
-            if ($key eq $good) {
-                $found = 1;
-            }
-        }
 
-        if ($found == 0) {
+        #Check for allowed entries.  Empty is OK.
+        if (!grep(/^$key$/, @allowed)) {
             die "Invalid entry $key in 'chosen' section in config file\n";
         }
+
+        #stdout-path and stdin-path can use aliases, which will look like
+        #(alias)uart5 in the yaml.  Change to (ref)uart5 so it will be
+        #converted to a '&' later.
+        $chosen{$key} =~ s/\(alias\)/\(ref\)/g;
     }
 
     return %chosen;
