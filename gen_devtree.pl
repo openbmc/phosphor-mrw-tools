@@ -7,6 +7,7 @@ use strict;
 use warnings;
 use XML::Simple;
 use mrw::Targets;
+use mrw::Util;
 use Getopt::Long;
 use YAML::Tiny qw(LoadFile);
 use Scalar::Util qw(looks_like_number);
@@ -85,10 +86,7 @@ exit 0;
 # $g_bmc, $g_bmcModel, $g_bmcMfgr, $g_systemName
 sub setGlobalAttributes
 {
-    $g_bmc = getBMCTarget();
-    if (length($g_bmc) == 0) {
-        die "Unable to find a BMC in this system\n";
-    }
+    $g_bmc = Util::getBMCTarget($g_targetObj);
 
     if ($g_targetObj->isBadAttribute($g_bmc, "MODEL")) {
         die "The MODEL attribute on $g_bmc is missing or empty.\n";
@@ -1103,20 +1101,6 @@ sub convertReference
     my $val = shift;
     $val =~ s/\(ref\)/&/g;
     return $val
-}
-
-
-#Returns the target for the BMC chip.
-#Not worrying about multiple BMC systems for now.
-sub getBMCTarget()
-{
-    foreach my $target (sort keys %{ $g_targetObj->getAllTargets() })
-    {
-        if ($g_targetObj->getType($target) eq "BMC") {
-           return $target;
-        }
-    }
-    return "";
 }
 
 
