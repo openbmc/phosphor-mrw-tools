@@ -4,6 +4,7 @@
 #readable workbook.
 
 use strict;
+use warnings;
 use XML::Simple;
 use mrw::Targets;
 use Getopt::Long;
@@ -82,7 +83,7 @@ exit 0;
 
 #Finds the values for these globals:
 # $g_bmc, $g_bmcModel, $g_bmcMfgr, $g_systemName
-sub setGlobalAttributes()
+sub setGlobalAttributes
 {
     $g_bmc = getBMCTarget();
     if (length($g_bmc) == 0) {
@@ -113,7 +114,7 @@ sub setGlobalAttributes()
 #    name2 = &val2;
 #    ...
 #  }
-sub getAliases()
+sub getAliases
 {
     my %aliases;
 
@@ -143,7 +144,7 @@ sub getAliases()
 #      stdout-path = ...
 #      bootargs = ...
 #   }
-sub getChosen()
+sub getChosen
 {
     my %chosen;
     my @allowed = qw(bootargs stdin-path stdout-path);
@@ -178,7 +179,7 @@ sub getChosen()
 #  memory {
 #     reg = < base size >
 #  }
-sub getBmcMemory()
+sub getBmcMemory
 {
     my %memory;
 
@@ -212,7 +213,7 @@ sub getBmcMemory()
 #Returns an array of hashes representing the device tree nodes for
 #the BMC flash.  These nodes are BMC model specific because different
 #models can have different device drivers.
-sub getBMCFlashNodes()
+sub getBMCFlashNodes
 {
     my @nodes;
 
@@ -243,7 +244,7 @@ sub getBMCFlashNodes()
 #    flash@1 {
 #       ...
 #    };
-sub getAST2500BMCSPIFlashNode()
+sub getAST2500BMCSPIFlashNode
 {
     my %bmcFlash;
     my $chipSelect = 0;
@@ -312,7 +313,7 @@ sub getAST2500BMCSPIFlashNode()
 #flash node.
 #  $node = hash reference to the flash node
 #  $cs = the flash chip select value
-sub addBMCFlashConfigProperties()
+sub addBMCFlashConfigProperties
 {
     my ($node, $cs) = @_;
     my $section = "chip-select-$cs";
@@ -329,7 +330,7 @@ sub addBMCFlashConfigProperties()
 #BMC besides the ones that hold the BMC code.  This is BMC model specific
 #as different models can have different interfaces.
 #Typically, these are SPI flashes.
-sub getOtherFlashNodes()
+sub getOtherFlashNodes
 {
     my @nodes;
 
@@ -348,7 +349,7 @@ sub getOtherFlashNodes()
 #AST2500.  These are for the SPI1 and SPI2 interfaces in the chip.
 #Each SPI master interface can support multiple flash chips.  If
 #no hardware is connected to the interface, the node won't be present.
-sub getAST2500SpiFlashNodes()
+sub getAST2500SpiFlashNodes
 {
     my @nodes;
 
@@ -383,7 +384,7 @@ sub getAST2500SpiFlashNodes()
 #  };
 #
 #  $spiNum = The SPI master unit number to use
-sub getAST2500SpiMasterNode()
+sub getAST2500SpiMasterNode
 {
     my $spiNum = shift;
     my %spiMaster;
@@ -441,7 +442,7 @@ sub getAST2500SpiMasterNode()
 #       <another ledname> {
 #       ...
 #   }
-sub getLEDNode()
+sub getLEDNode
 {
     my %leds;
 
@@ -486,7 +487,8 @@ sub getLEDNode()
 
 #Returns a either GPIO_ACTIVE_HIGH or GPIO_ACTIVE_LOW
 #  $val = either a 1 or a 0 for active high or low
-sub getGpioActiveString() {
+sub getGpioActiveString
+{
     my $val = shift;
 
     if ($val == 0) {
@@ -501,7 +503,8 @@ sub getGpioActiveString() {
 #ASPEED GPIO numbering scheme A[0-7] -> Z[0-7] and then starts at
 #AA[0-7] after that.
 #  $num = the GPIO number
-sub getAspeedGpioMacro() {
+sub getAspeedGpioMacro
+{
     my $num = shift;
     my $char;
     my $offset = $num % 8;
@@ -538,7 +541,7 @@ sub getAspeedGpioMacro() {
 #  &uartX {
 #     status = "okay"
 #  }
-sub getUARTNodes()
+sub getUARTNodes
 {
     my @nodes;
 
@@ -578,7 +581,7 @@ sub getUARTNodes()
 #  &macX {
 #    ...
 #  }
-sub getMacNodes()
+sub getMacNodes
 {
     my @nodes;
 
@@ -627,7 +630,7 @@ sub getMacNodes()
 #  &vuart {
 #   status = "okay"
 #  }
-sub getVuartNodes()
+sub getVuartNodes
 {
     my @nodes;
     my %node;
@@ -661,7 +664,7 @@ sub getVuartNodes()
 #  &i2c1 {
 #  ...
 #  }
-sub getI2CNodes()
+sub getI2CNodes
 {
     my @nodes;
     my %busNodes;
@@ -756,7 +759,7 @@ sub getI2CNodes()
 #the attributes to find their values in are stored in the
 #BMC_DT_ATTR_NAMES attribute in the chip.
 #  $chip = the chip target
-sub getPartDefinedDTProperties()
+sub getPartDefinedDTProperties
 {
     my $chip = shift;
     my %props;
@@ -795,7 +798,7 @@ sub getPartDefinedDTProperties()
 
 #Convert the MRW I2C address into the format the dts needs
 #  $addr = the I2C Address
-sub adjustI2CAddress()
+sub adjustI2CAddress
 {
     my $addr = shift;
 
@@ -809,7 +812,7 @@ sub adjustI2CAddress()
 
 
 #Sets the global $g_i2cBusAdjust from the configuration file.
-sub getI2CBusAdjust()
+sub getI2CBusAdjust
 {
     if (exists $g_configuration{"i2c-bus-adjust"}) {
 
@@ -837,7 +840,7 @@ sub getI2CBusAdjust()
 #so is known by the MRW.
 #  $target = the target to get the BMC_DT_PINCTRL_FUNCTS attribute from
 #  $node = a hash reference to the device tree node to add the properties to
-sub addPinCtrlProps()
+sub addPinCtrlProps
 {
     my ($target, $node) = @_;
 
@@ -857,7 +860,7 @@ sub addPinCtrlProps()
 #Constructs the pinctrl-0 property value based on the
 #BMC_DT_PINCTRL_FUNCS attribute passed in.
 #  $attr = BMC_DT_PINCTRL_FUNCS attribute value, which is an array
-sub makePinCtrl0PropValue()
+sub makePinCtrl0PropValue
 {
     my $attr = shift;
     my @entries;
@@ -886,7 +889,7 @@ sub makePinCtrl0PropValue()
 
 
 #Returns a list of compatible fields for the BMC itself.
-sub getBMCCompatibles()
+sub getBMCCompatibles
 {
     my @compats;
 
@@ -908,7 +911,7 @@ sub getBMCCompatibles()
 
 
 #Returns a string for the system's BMC model property
-sub getSystemBMCModel()
+sub getSystemBMCModel
 {
     #'<System> BMC'
     my $sys = lc $g_systemName;
@@ -923,7 +926,7 @@ sub getSystemBMCModel()
 # // destChip
 #
 #  $conn = The connection hash reference
-sub connectionComment()
+sub connectionComment
 {
     my $conn = shift;
     my $comment = "$conn->{SOURCE} ->\n$conn->{DEST_PARENT}";
@@ -936,7 +939,7 @@ sub connectionComment()
 #  $level = indent level (0,1,etc)
 #  @nodes = array of node hashes to print, where the
 #  key for the hash is the name of the node
-sub printNodes()
+sub printNodes
 {
     my ($f, $level, @nodes) = @_;
 
@@ -966,7 +969,7 @@ sub printNodes()
 #     - a hash - then that hash gets turned into a child node
 #       where the key is the name of the child node
 #     - an array of hashes indicates an array of child nodes
-sub printNode()
+sub printNode
 {
     my ($f, $level, $name, %vals) = @_;
     my $include = "";
@@ -1044,7 +1047,7 @@ sub printNode()
 #  $level = indent level (0,1,etc)
 #  $name = name of property
 #  @vals = list of property values
-sub printPropertyList()
+sub printPropertyList
 {
     my ($f, $level, $name, @vals) = @_;
 
@@ -1065,7 +1068,7 @@ sub printPropertyList()
 #  $level = indent level (0,1,etc)
 #  $name = name of property
 #  @vals = property values
-sub printProperty()
+sub printProperty
 {
     my ($f, $level, $name, $val) = @_;
     my $quoteChar = qq(");
@@ -1085,7 +1088,7 @@ sub printProperty()
 #  $f = file handle
 #  $level = indent level (0,1,etc)
 #  $name = name of property
-sub printZeroLengthProperty()
+sub printZeroLengthProperty
 {
     my ($f, $level, $name) = @_;
     print $f indent($level) . "$name;\n";
@@ -1096,7 +1099,8 @@ sub printZeroLengthProperty()
 #Needed because Serverwiz doesn't properly escape '&'s in the XML,
 #so the '(ref)' string is used to represent the reference
 #specifier instead of '&'.
-sub convertReference() {
+sub convertReference
+{
     my $val = shift;
     $val =~ s/\(ref\)/&/g;
     return $val
@@ -1119,7 +1123,7 @@ sub getBMCTarget()
 
 #Prints the device tree version line.
 #  $f = file handle
-sub printVersion()
+sub printVersion
 {
     my $f = shift;
     print $f VERSION."\n"
@@ -1130,7 +1134,7 @@ sub printVersion()
 #The files to include come from the configuration file.
 #  $f = file handle
 #  $type = include type
-sub printIncludes()
+sub printIncludes
 {
     my ($f, $type) = @_;
     my @includes = getIncludes($type);
@@ -1152,7 +1156,7 @@ sub printIncludes()
 #for the type specified.
 # $type = the include type, which is the section name in the
 #         YAML configuration file.
-sub getIncludes()
+sub getIncludes
 {
     my $type = shift;
     my @includes;
@@ -1174,7 +1178,7 @@ sub getIncludes()
 #full name for the node
 #  $name = node name that will be appended to
 #  $reg = the reg property values
-sub makeNodeName()
+sub makeNodeName
 {
     my ($name, $reg) = @_;
 
@@ -1193,7 +1197,8 @@ sub makeNodeName()
 
 #Prints the root node starting bracket.
 #  $f = file handle
-sub printRootNodeStart() {
+sub printRootNodeStart
+{
     my $f = shift;
     print $f qq(/ {\n);
 }
@@ -1202,7 +1207,8 @@ sub printRootNodeStart() {
 #Prints the root node ending bracket.
 #  $f = file handle
 #  $level = indent level (0,1,etc)
-sub printRootNodeEnd() {
+sub printRootNodeEnd
+{
     my ($f, $level) = @_;
     print $f indent($level).qq(};\n);
 }
@@ -1211,7 +1217,8 @@ sub printRootNodeEnd() {
 #Returns a string that can be used to indent based on the
 #level passed in.  Each level is an additional 4 spaces.
 #  $level = indent level (0,1,etc)
-sub indent() {
+sub indent
+{
     my $level = shift;
     return ' ' x ($level * 4);
 }
