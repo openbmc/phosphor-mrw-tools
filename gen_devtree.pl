@@ -76,9 +76,10 @@ printNodes($f, 0, getOtherFlashNodes());
 printNode($f, 0, "lpc_ctrl", getLPCNode());
 printNode($f, 0, "mbox", getMBoxNode());
 
-printNodes($f, 0, getI2CNodes());
-printNodes($f, 0, getMacNodes());
 printNodes($f, 0, getUARTNodes());
+printNodes($f, 0, getMacNodes());
+
+printNodes($f, 0, getI2CNodes());
 printNodes($f, 0, getVuartNodes());
 
 printIncludes($f, POST_ROOT_INCLUDES);
@@ -1165,7 +1166,7 @@ sub printNode
             #print 1 include per line
             my @incs = split(',', $vals{$v});
             foreach my $i (@incs) {
-                print $f qq(#include "$i";\n);
+                print $f qq(#include "$i"\n);
             }
         }
     }
