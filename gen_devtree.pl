@@ -38,6 +38,7 @@ if ((not defined $serverwizFile) || (not defined $outputFile) ||
     printUsage();
 }
 
+my $g_pnorNodeName = undef;
 my %g_configuration = %{ LoadFile($configFile) };
 
 my $g_targetObj = Targets->new;
@@ -70,8 +71,10 @@ printIncludes($f, ROOT_INCLUDES);
 printRootNodeEnd($f, 0);
 
 printNodes($f, 0, getBMCFlashNodes());
-
 printNodes($f, 0, getOtherFlashNodes());
+
+printNode($f, "0", "lpc_ctrl", getLPCNode());
+printNode($f, 0, "mbox", getMBoxNode());
 
 printNodes($f, 0, getI2CNodes());
 printNodes($f, 0, getMacNodes());
@@ -435,13 +438,18 @@ sub getAST2500SpiFlashNodes
 
     foreach my $unit (@units) {
 
-        my %node = getAST2500SpiMasterNode($unit);
+        my ($node, $foundPNOR) = getAST2500SpiMasterNode($unit);
 
-        if (keys %node) {
+        if (keys %$node) {
             my %spiNode;
             my $nodeName = "spi$unit";
-            $spiNode{$nodeName} = { %node };
+            $spiNode{$nodeName} = { %$node };
             push @nodes, { %spiNode };
+
+            #Save off the PNOR SPI node name for use by LPC node
+            if ($foundPNOR) {
+                $g_pnorNodeName = $nodeName;
+            }
         }
     }
 
@@ -466,6 +474,7 @@ sub getAST2500SpiMasterNode
     my $spiNum = shift;
     my %spiMaster;
     my $chipSelect = 0;
+    my $foundPNOR = 0;
 
     my $connections = $g_targetObj->findConnections($g_bmc, "SPI", "FLASH");
 
@@ -499,13 +508,63 @@ sub getAST2500SpiMasterNode
                                                       "SPI_FUNCTION");
             if ($function eq "PNOR") {
                 $spiMaster{$flashName}{label} = "pnor";
+                $foundPNOR = 1;
             }
 
             $chipSelect++;
         }
     }
 
-    return %spiMaster;
+    return (\%spiMaster, $foundPNOR);
+}
+
+
+#Returns a hash that represents the mbox node.
+#This node is used by the LPC mailbox device driver.
+#Only present if the LPC mailbox is enabled in the config file.
+#Node looks like:
+#  &mbox {
+#    status = "okay";
+#  }
+sub getMBoxNode
+{
+    my %node;
+    if (exists $g_configuration{"lpc-host-spi-flash-mailbox"}) {
+        $node{status} = "okay";
+    }
+
+    return %node;
+}
+
+
+#Returns a hash that represents the LPC node.
+#Only present if the LPC mailbox is enabled in the config file.
+#Node looks like:
+#  &lpc_ctrl {
+#     flash = <&spi1>;
+#     memory-region = <&flash_memory>;
+#     status = "okay";
+#};
+sub getLPCNode
+{
+    my %node;
+    if (exists $g_configuration{"lpc-host-spi-flash-mailbox"}) {
+
+        $node{status} = "okay";
+
+        #Point to the reserved-memory region label
+        $node{"memory-region"} = "<(ref)" .
+                                 HOST_SPI_FLASH_MEM_REGION_NODE_LABEL . ">";
+
+        if (not defined $g_pnorNodeName) {
+            die "The PNOR SPI flash node cannot be found but is required " .
+                "if the LPC mailbox is enabled.\n";
+        }
+
+        $node{flash} = "<(ref)$g_pnorNodeName>";
+    }
+
+    return %node;
 }
 
 
