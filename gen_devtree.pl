@@ -17,7 +17,8 @@ use constant {
     ZERO_LENGTH_PROPERTY => "zero_length_property",
     PRE_ROOT_INCLUDES => "pre-root-node",
     ROOT_INCLUDES => "root-node",
-    POST_ROOT_INCLUDES => "post-root-node"
+    POST_ROOT_INCLUDES => "post-root-node",
+    HOST_SPI_FLASH_MEM_REGION_NODE_LABEL => "flash_memory"
 };
 
 
@@ -60,6 +61,7 @@ printPropertyList($f, 1, "compatible", getBMCCompatibles());
 printNode($f, 1, "aliases", getAliases());
 printNode($f, 1, "chosen", getChosen());
 printNode($f, 1, "memory", getBmcMemory());
+printNode($f, 1, "reserved-memory", getReservedMemory());
 
 printNode($f, 1, "leds", getLEDNode());
 
@@ -204,6 +206,84 @@ sub getBmcMemory
                    "$g_configuration{memory}{size}>";
 
     return %memory;
+}
+
+
+#Returns a hash that represents the 'reserved-memory' node.
+#This currently only supports the memory region for the LPC
+#host spi flash mailbox.  Will look like:
+#  reserved-memory {
+#     #address-cells = <1>;
+#     #size-cells = <1>;
+#     ranges;
+#
+#     flash_memory: region@94000000 {
+#       no-map;
+#       reg = <0x94000000 0x04000000>;
+#     };
+#  };
+sub getReservedMemory
+{
+    my %memory;
+
+    if (not exists $g_configuration{"lpc-host-spi-flash-mailbox"}) {
+        return %memory;
+    }
+
+    $memory{"#address-cells"} = "<1>";
+    $memory{"#size-cells"} = "<1>";
+    $memory{ranges} = ZERO_LENGTH_PROPERTY;
+
+    #Get the sub node that contains the address range
+    my ($name, $node) = getHostSpiFlashMboxRegion();
+    $memory{$name} = { %$node };
+
+    return %memory;
+}
+
+
+#Returns a hash that represents a child node of the
+#reserved-memory node which contains the address range
+#that the host spi flash is mapped to.
+sub getHostSpiFlashMboxRegion
+{
+    my %node;
+
+    $node{"no-map"} = ZERO_LENGTH_PROPERTY;
+
+    #This node needs a label the LPC node can refer to.
+    $node{NODE_LABEL} = HOST_SPI_FLASH_MEM_REGION_NODE_LABEL;
+
+    #Get the memory region's base address and size from the config file
+    if (not exists $g_configuration{"lpc-host-spi-flash-mailbox"}
+                                   {"bmc-address-range"}{base}) {
+        die "Could not find lpc-host-spi-flash-mailbox base " .
+            "address in config file\n";
+    }
+
+    my $base = $g_configuration{"lpc-host-spi-flash-mailbox"}
+                               {"bmc-address-range"}{base};
+    if (($base !~ /^0x/) || (length($base) > 10)) {
+        die "lpc-host-spi-flash-mailbox base address $base is invalid\n";
+    }
+
+    if (not exists $g_configuration{"lpc-host-spi-flash-mailbox"}
+                                   {"bmc-address-range"}{size}) {
+        die "Could not find lpc-host-spi-flash-mailbox address size " .
+            "in config file\n";
+    }
+
+    my $size = $g_configuration{"lpc-host-spi-flash-mailbox"}
+                               {"bmc-address-range"}{size};
+    if (($size !~ /^0x/) || (length($size) > 10)) {
+        die "lpc-host-spi-flash-mailbox address range size " .
+            "$size is invalid\n";
+    }
+
+    $node{"reg"} = "<$base $size>";
+    my $name = makeNodeName("region", $node{reg});
+
+    return ($name, \%node);
 }
 
 
@@ -989,7 +1069,14 @@ sub printNode
         }
     }
 
-    print $f indent($level) . "$name {\n";
+    #The node can have a label, which looks like:
+    #label : name {
+    my $label = "";
+    if (exists $vals{NODE_LABEL}) {
+        $label = $vals{NODE_LABEL} . ": ";
+    }
+
+    print $f indent($level) . $label . "$name {\n";
 
     #First print properties, then includes, then subnodes
 
@@ -998,6 +1085,7 @@ sub printNode
 
         next if ($v eq "COMMENT");
         next if ($v eq "DTSI_INCLUDE");
+        next if ($v eq "NODE_LABEL");
         next if (ref($vals{$v}) eq "HASH");
         next if (ref($vals{$v}) eq "ARRAY");
 
