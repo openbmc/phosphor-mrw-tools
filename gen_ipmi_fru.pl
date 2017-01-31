@@ -5,7 +5,7 @@ use warnings;
 use mrw::Targets;
 use mrw::Inventory;
 use Getopt::Long; # For parsing command line arguments
-use YAML::XS 'LoadFile'; # For loading and reading of YAML file
+use YAML::Tiny qw(LoadFile);
 
 # Globals
 my $serverwizFile  = "";
