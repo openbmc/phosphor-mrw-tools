@@ -1,7 +1,15 @@
 #!/usr/bin/env perl
 
-#Generates a BMC device tree syntax file from the machine
-#readable workbook.
+#Generates an OpenBMC device tree syntax file from the machine
+#readable workbook.  It relies on the fact that the dts include
+#file for the BMC chip itself contains the BMC chip specific
+#data, so this can just generate the system specific data.
+#It also makes use of a YAML configuration file to contain
+#settings that are outside the scope of the MRW.
+#
+#This doesn't attempt to support every possible type of device
+#tree node from the start.  Support may need to be added as newer
+#systems come along that make use of different features.
 
 use strict;
 use warnings;
