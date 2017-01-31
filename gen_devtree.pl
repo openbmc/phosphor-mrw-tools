@@ -205,8 +205,9 @@ sub getBmcMemory
 
     #Future: could do more validation on the actual values
 
-    $memory{reg} = "<$g_configuration{memory}{base} " .
-                   "$g_configuration{memory}{size}>";
+    addRegProp(\%memory,
+               $g_configuration{memory}{base},
+               $g_configuration{memory}{size});
 
     return %memory;
 }
@@ -283,7 +284,7 @@ sub getHostSpiFlashMboxRegion
             "$size is invalid\n";
     }
 
-    $node{"reg"} = "<$base $size>";
+    addRegProp(\%node, $base, $size);
     my $name = makeNodeName("region", $node{reg});
 
     return ($name, \%node);
@@ -336,7 +337,7 @@ sub getAST2500BMCSPIFlashNode
         die "ERROR:  No BMC SPI flashes found connected to the BMC\n";
     }
 
-    $bmcFlash{fmc}{status} = "okay";
+    statusOK(\%{$bmcFlash{fmc}});
 
     foreach my $spi (@{$connections->{CONN}}) {
 
@@ -352,7 +353,7 @@ sub getAST2500BMCSPIFlashNode
 
                 $bmcFlash{fmc}{$flashName}{COMMENT} = connectionComment($spi);
 
-                $bmcFlash{fmc}{$flashName}{status} = "okay";
+                statusOK(\%{$bmcFlash{fmc}{$flashName}});
 
                 #Add in anything specified in the config file for this chip.
                 addBMCFlashConfigProperties(\%{$bmcFlash{fmc}{$flashName}},
@@ -489,7 +490,7 @@ sub getAST2500SpiMasterNode
         my $unitNum = $g_targetObj->getAttribute($spi->{SOURCE},
                                                  "CHIP_UNIT");
         if ($unitNum == $spiNum) {
-            $spiMaster{status} = "okay";
+            statusOK(\%spiMaster);
 
             #Add in any pinctrl properties.  These would come from the parent
             #of $spi{SOURCE}, which would be a unit-pingroup-bmc if the
@@ -501,7 +502,7 @@ sub getAST2500SpiMasterNode
 
             $spiMaster{$flashName}{COMMENT} = connectionComment($spi);
 
-            $spiMaster{$flashName}{status} = "okay";
+            statusOK(\%{$spiMaster{$flashName}});
 
             #AST2500 PNORs need a label
             my $function = $g_targetObj->getAttribute($spi->{SOURCE},
@@ -530,7 +531,7 @@ sub getMBoxNode
 {
     my %node;
     if (exists $g_configuration{"lpc-host-spi-flash-mailbox"}) {
-        $node{status} = "okay";
+        statusOK(\%node);
     }
 
     return %node;
@@ -550,7 +551,7 @@ sub getLPCNode
     my %node;
     if (exists $g_configuration{"lpc-host-spi-flash-mailbox"}) {
 
-        $node{status} = "okay";
+        statusOK(\%node);
 
         #Point to the reserved-memory region label
         $node{"memory-region"} = "<(ref)" .
@@ -695,7 +696,7 @@ sub getUARTNodes
         my $num = $g_targetObj->getAttribute($uart->{SOURCE}, "CHIP_UNIT");
         my $name = "uart$num";
 
-        $node{$name}{status} = "okay";
+        statusOK(\%{$node{$name}});
         $node{$name}{COMMENT} = connectionComment($uart);
 
         #Add in any pinctrl properties.  These would come from the parent
@@ -737,7 +738,7 @@ sub getMacNodes
                                                   "USE_HW_CHECKSUM");
 
         my $name = "mac$num";
-        $node{$name}{status} = "okay";
+        statusOK(\%{$node{$name}});
 
         if ($ncsi == 1) {
             $node{$name}{"use-ncsi"} = ZERO_LENGTH_PROPERTY;
@@ -773,7 +774,7 @@ sub getVuartNodes
 
     #For now, enable 1 node all the time.
     #TBD if this needs to be fixed
-    $node{vuart}{status} = "okay";
+    statusOK(\%{$node{vuart}});
 
     push @nodes, { %node };
 
@@ -831,7 +832,7 @@ sub getI2CNodes
 
         #Put it in the format we want to print it in
         $i2cAddress = adjustI2CAddress($i2cAddress);
-        $deviceNode{reg} = "<$i2cAddress>";
+        addRegProp(\%deviceNode, $i2cAddress);
 
         $deviceName = makeNodeName($deviceName, $deviceNode{reg});
 
@@ -871,7 +872,7 @@ sub getI2CNodes
         #busNodeName is the hash twice so when we loop
         #below it doesn't get lost
         my $busNodeName = "i2c$busNum";
-        $busNodes{$busNodeName}{$busNodeName}{status} = "okay";
+        statusOK(\%{$busNodes{$busNodeName}{$busNodeName}});
         $busNodes{$busNodeName}{$busNodeName}{$deviceName} = { %deviceNode };
 
         #Add in any pinctrl properties.  These would come from the parent
@@ -1351,6 +1352,36 @@ sub indent
 {
     my $level = shift;
     return ' ' x ($level * 4);
+}
+
+
+#Adds a {status} = "okay" element to the hash passed in.
+# $node = reference to the hash to add element to
+sub statusOK
+{
+    my $node = shift;
+    $node->{status} = "okay";
+}
+
+
+#Adds the {reg} element to the hash passed in using the values
+#passed in.  Resulting value looks like: "<val1  val2  etc>"
+# $node = reference to the hash to add element to
+# @values = the values for the property.  May be passed in one at
+#           a time and not as an array.
+sub addRegProp
+{
+    my $node = shift;
+    my @values = @_;
+
+    $node->{reg} = "<";
+    for (my $i = 0; $i < scalar @values; $i++) {
+        $node->{reg} .= $values[$i];
+        if ($i < (scalar @values) - 1) {
+            $node->{reg} .= " ";
+        }
+    }
+    $node->{reg} .= ">";
 }
 
 
