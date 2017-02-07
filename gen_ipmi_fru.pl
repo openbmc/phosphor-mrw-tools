@@ -4,6 +4,7 @@ use warnings;
 
 use mrw::Targets;
 use mrw::Inventory;
+use mrw::Util;
 use Getopt::Long; # For parsing command line arguments
 use YAML::Tiny qw(LoadFile);
 
@@ -106,29 +107,13 @@ for my $item (@inventory) {
 
         printDebug("     ".$child);
         printDebug("     Type:".$fruType );
-        my $childObmcName = getObmcName(\@inventory, $child);
+        my $childObmcName = Util::getObmcName(\@inventory, $child);
         writeToFile($fruType, $childObmcName, $fruTypeConfig, $fh);
     }
 }
 close $fh;
 
 #------------------------------------END OF MAIN-----------------------
-
-# Map an MRW name to corresponding OBMC name
-sub getObmcName
-{
-    my $inventory = $_[0]; # Inventory items
-    my $target = $_[1]; # MRW Target name
-    for my $item (@inventory)
-    {
-        if($item->{TARGET} eq $target)
-        {
-            return $item->{OBMC_NAME};
-        }
-    }
-    return undef;
-}
-
 
 #Get the metdata for the incoming frutype from the loaded config file.
 #Write the FRU data into the output file
