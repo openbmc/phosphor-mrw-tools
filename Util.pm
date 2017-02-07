@@ -43,6 +43,24 @@ sub getChildUnitsWithTargetType
     return @units;
 }
 
+# Returns OBMC name corresponding to a Target name
+# param[in] \@inventory = reference to aray of inventory items
+# param[in] $targetName = A Target name
+sub getObmcName
+{
+    my ($inventory_ref, $targetName) = @_;
+    my @inventory = @{ $inventory_ref };
+
+    for my $item (@inventory)
+    {
+        if($item->{TARGET} eq $targetName)
+        {
+            return $item->{OBMC_NAME};
+        }
+    }
+    return undef;
+}
+
 1;
 
 =head1 NAME
@@ -66,6 +84,11 @@ it will die.  Currently supports single BMC systems.
 
 Returns an array of targets that have target-type C<TargetType>
 and are children (any level) of target C<ChipTarget>.
+
+=item getObmcName(C<InventoryItems>, C<TargetName>)
+
+Returns an OBMC name corresponding to a Target name. Returns
+undef if the Target name is not found.
 
 =back
 
