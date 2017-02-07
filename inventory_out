@@ -1,0 +1,2 @@
+FRUS=BMC,ETHERNET
+PATHS=/system/chassis/motherboard/boxelder/bmc,/system/chassis/motherboard/bmc/ethernet
