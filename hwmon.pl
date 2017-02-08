@@ -54,6 +54,10 @@ sub getI2CSensors
                                                       "unit-hwmon-feature",
                                                       $chip);
 
+        #If the MRW doesn't specify a label for a particular hwmon
+        #feature, then we don't want to use it.
+        removeUnusedHwmons(\@hwmonUnits);
+
         #If chip didn't have hwmon units, it isn't hwmon enabled.
         next unless (scalar @hwmonUnits > 0);
 
@@ -64,6 +68,31 @@ sub getI2CSensors
         getI2CAttributes($i2c, \%entry);
 
         push @$hwmon, { %entry };
+    }
+}
+
+
+#Removes entries from the list of hwmon units passed in that have
+#an empty HWMON_NAME or DESCRIPTIVE_NAME attribute.
+sub removeUnusedHwmons
+{
+    my ($units) = @_;
+    my $i = 0;
+
+    while ($i <= $#$units) {
+
+        my $hwmon = $g_targetObj->getAttributeField($$units[$i],
+                                                    "HWMON_FEATURE",
+                                                    "HWMON_NAME");
+        my $name = $g_targetObj->getAttributeField($$units[$i],
+                                                   "HWMON_FEATURE",
+                                                   "DESCRIPTIVE_NAME");
+        if (($hwmon eq "") || ($name eq "")) {
+            splice(@$units, $i, 1);
+        }
+        else {
+            $i++;
+        }
     }
 }
 
