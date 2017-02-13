@@ -74,6 +74,8 @@ printNode($f, 1, "reserved-memory", getReservedMemory());
 
 printNode($f, 1, "leds", getLEDNode());
 
+printNode($f, 1, "fsi-master", getFSINode());
+
 printIncludes($f, ROOT_INCLUDES);
 
 printRootNodeEnd($f, 0);
@@ -682,6 +684,112 @@ sub getAspeedGpioMacro
 }
 
 
+#Returns a hash that represents the OpenFSI device tree node.
+#This node defines the GPIOs used by FSI.
+#Node will look like:
+#  fsi-master {
+#    status = "okay";
+#    compatible = "ibm,fsi-master-gpio", "ibm,fsi-master";
+#    clock-gpios = <&gpio ASPEED_GPIO(AA, 0) GPIO_ACTIVE_HIGH>;
+#    data-gpios = <&gpio ASPEED_GPIO(E, 0) GPIO_ACTIVE_HIGH>;
+#    enable-gpios = <&gpio ASPEED_GPIO(D, 0) GPIO_ACTIVE_HIGH>;
+#    mux-gpios = <&gpio ASPEED_GPIO(A, 6) GPIO_ACTIVE_HIGH>;
+#    trans-gpios = <&gpio ASPEED_GPIO(R, 2) GPIO_ACTIVE_HIGH>;
+#  };
+sub getFSINode
+{
+    my %node;
+    my $enabled = 0;
+
+    #For now only supports ASPEED because of the GPIO syntax.
+    if (uc($g_bmcMfgr) ne "ASPEED") {
+        die "ERROR:  Unsupported BMC manufacturer $g_bmcMfgr in getFSINode\n";
+    }
+
+    #Check that OpenFSI is enabled in the config file.
+    if (exists $g_configuration{"enable-openfsi"}) {
+        if ($g_configuration{"enable-openfsi"} eq "true") {
+            $enabled = 1;
+        }
+        elsif (($g_configuration{"enable-openfsi"} ne "true") &&
+               ($g_configuration{"enable-openfsi"} ne "false")) {
+            die "Invalid enable-openfsi config file value: " .
+                $g_configuration{"enable-openfsi"} . "\n";
+        }
+    }
+
+    return %node unless ($enabled == 1);
+
+    #In the MRW there is an fsi_bit_bang logical part that connects to the
+    #BMC's 5 FSI related GPIOs.  This part then has an FSI master unit that
+    #would connect to the P9's FSI slave (though we don't check that).
+
+    #Find the specific GPIOs by the fsi_bit_bang slave
+    #unit that they're connected to.  Some are optional.
+    my %fsiGpios = ("fsi_bit_bang.fsi_clk" =>
+                    {
+                        name => "clock-gpios",
+                        gpio => undef,
+                        required => 1
+                    },
+                    "fsi_bit_bang.fsi_dat" =>
+                    {
+                        name => "data-gpios",
+                        gpio => undef,
+                        required => 1
+                    },
+                    "fsi_bit_bang.fsi_mux" =>
+                    {
+                        name => "mux-gpios",
+                        gpio => undef
+                    },
+                    "fsi_bit_bang.fsi_enable" =>
+                    {
+                        name => "enable-gpios",
+                        gpio => undef
+                    },
+                    "fsi_bit_bang.fsi_trans" =>
+                    {
+                        name => "trans-gpios",
+                        gpio => undef
+                    }
+                   );
+
+    my $connections = $g_targetObj->findConnections($g_bmc, "GPIO");
+    if ($connections eq "") {
+        die "No GPIO connections found in getFSINode\n";
+    }
+
+    for my $gpio (@{$connections->{CONN}}) {
+
+        #Check if the destination's slave unit is in our list.
+        my $slaveUnit = $g_targetObj->getInstanceName($gpio->{DEST});
+
+        if (exists $fsiGpios{$slaveUnit}) {
+            my $num = $g_targetObj->getAttribute($gpio->{SOURCE}, "PIN_NUM");
+            $fsiGpios{$slaveUnit}{gpio} = getAspeedGpioMacro($num);
+        }
+    }
+
+    statusOK(\%node);
+
+    push @{$node{compatible}}, "ibm,fsi-master", "ibm,fsi-master-gpio";
+
+    while (my ($key, $hash) = each(%fsiGpios)) {
+        if (not defined $hash->{gpio}) {
+            if (exists $hash->{required}) {
+                die "Missing connection for FSI GPIO $key\n";
+            }
+        }
+        else {
+            $node{$hash->{name}} = "<&gpio $hash->{gpio} GPIO_ACTIVE_HIGH>";
+        }
+    }
+
+    return %node;
+}
+
+
 #Returns a list of hashes that represent the UART nodes on the BMC by
 #finding the UART connections.
 #Nodes will look like:
@@ -1100,7 +1208,7 @@ sub printNodes
 #     If the value is:
 #     - a hash - then that hash gets turned into a child node
 #       where the key is the name of the child node
-#     - an array of hashes indicates an array of child nodes
+#     - an array - will print a property list, like: "a", "b"
 sub printNode
 {
     my ($f, $level, $name, %vals) = @_;
@@ -1142,9 +1250,11 @@ sub printNode
         next if ($v eq "DTSI_INCLUDE");
         next if ($v eq "NODE_LABEL");
         next if (ref($vals{$v}) eq "HASH");
-        next if (ref($vals{$v}) eq "ARRAY");
 
-        if ($vals{$v} ne ZERO_LENGTH_PROPERTY) {
+        if (ref($vals{$v}) eq "ARRAY") {
+            printPropertyList($f, $level+1, $v, @{$vals{$v}});
+        }
+        elsif ($vals{$v} ne ZERO_LENGTH_PROPERTY) {
             printProperty($f, $level+1, $v, $vals{$v});
         }
         else {
@@ -1169,11 +1279,6 @@ sub printNode
 
         if (ref($vals{$v}) eq "HASH") {
             printNode($f, $level+1, $v, %{$vals{$v}});
-        }
-        #An array of nested nodes
-        elsif (ref($vals{$v}) eq "ARRAY") {
-            my @array = @{$vals{$v}};
-            &printNodes($f, $level+1, @array);
         }
     }
 
