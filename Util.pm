@@ -61,6 +61,29 @@ sub getObmcName
     return undef;
 }
 
+#Returns the array of all the device path based on the type.
+# param[in] \@inventory = reference to array of inventory items.
+# param[in] $targetObj = The Targets object.
+# param[in] $type = The target type.
+sub getDevicePath
+{
+    my ($inventory_ref, $targetObj, $type) = @_;
+    my @inventory = @{ $inventory_ref };
+    my $fruType = "";
+    my @devices;
+    for my $item (@inventory)
+    {
+        if (!$targetObj->isBadAttribute($item->{TARGET}, "TYPE")) {
+            $fruType = $targetObj->getAttribute($item->{TARGET}, "TYPE");
+            if($fruType eq $type) {
+                push(@devices,$item->{OBMC_NAME});
+            }
+        }
+    }
+    return @devices;
+}
+
+
 1;
 
 =head1 NAME
@@ -89,6 +112,9 @@ and are children (any level) of target C<ChipTarget>.
 
 Returns an OBMC name corresponding to a Target name. Returns
 undef if the Target name is not found.
+
+=item getDevicePath(C<InventoryItems>, C<TargetsObj>, C<TargetType>)
+#Returns the array of all the device path based on the type.
 
 =back
 
