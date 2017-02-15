@@ -138,6 +138,8 @@ sub makeOBMCNames
 
     #We want card1, not card-1
     removeHyphensFromInstanceNum($inventory);
+
+    pointChassisAtMotherboard($targetObj, $inventory);
 }
 
 
@@ -323,6 +325,33 @@ sub renameSegmentWithTargetType
 
             my $oldSegment = $targetObj->getInstanceName($target);
             $item->{OBMC_NAME} =~ s/$oldSegment/$newSegment/;
+        }
+    }
+}
+
+
+#FRU management code needs the node/chassis item to point
+#to the motherboard and not /system/chassis.  Can revisit this
+#for multi-chassis systems if they ever show up.
+sub pointChassisAtMotherboard
+{
+    my ($targetObj, $inventory) = @_;
+    my $newName = undef;
+
+    for my $item (@$inventory) {
+        my $type = $targetObj->getTargetType($item->{TARGET});
+        if ($type eq "card-motherboard") {
+            $newName = $item->{OBMC_NAME};
+            last;
+        }
+    }
+
+    for my $item (@$inventory) {
+        if ($targetObj->getType($item->{TARGET}) eq "NODE") {
+            if (defined $newName) {
+                $item->{OBMC_NAME} = $newName;
+            }
+            last;
         }
     }
 }
