@@ -7,7 +7,6 @@ use mrw::Inventory;
 use mrw::Util;
 use Getopt::Long; # For parsing command line arguments
 use YAML::Tiny qw(LoadFile);
-
 # Globals
 my $serverwizFile  = "";
 my $debug           = 0;
@@ -43,6 +42,10 @@ my @interestedTypes = keys %{$fruTypeConfig};
 my %types;
 @types{@interestedTypes} = ();
 
+my @allAssoTypes = getAllAssociatedTypes($fruTypeConfig);
+my %allAssoTypesHash;
+@allAssoTypesHash{@allAssoTypes} = ();
+
 my @inventory = Inventory::getInventory($targetObj);
 for my $item (@inventory) {
     my $isFru = 0, my $fruID = 0, my $fruType = "";
@@ -56,8 +59,12 @@ for my $item (@inventory) {
         $fruType = $targetObj->getAttribute($item->{TARGET}, "TYPE");
     }
 
-    #Skip if we're not interested
-    next if (not $isFru or not exists $types{$fruType});
+    #Skip if any one is true
+    #1) If not fru
+    #2) if the fru type is not there in the config file.
+    #3) if the fru type is in associated types.
+
+    next if (not $isFru or not exists $types{$fruType} or exists $allAssoTypesHash{$fruType});
 
     printDebug ("FRUID => $fruID, FRUType => $fruType, ObjectPath => $item->{OBMC_NAME}");
 
@@ -66,54 +73,43 @@ for my $item (@inventory) {
 
     writeToFile($fruType,$item->{OBMC_NAME},$fruTypeConfig,$fh);
 
-    # Fetch all the children for this inventory target,It might happen the child is fru or non fru
-    # Following condition to be true for fetching the associated non fru devices.
-    # -it should be non fru.
-    # -type of the fru is in the interested types.
-    # - the parent of the child should be same as inventory target.
+    #if the key(AssociatedTypes) exists and  it is defined
+    #then make the association.
 
-    foreach my $child ($targetObj->getAllTargetChildren($item->{TARGET})) {
-        $fruType = $targetObj->getAttribute($child, "TYPE");
-
-        if (!$targetObj->isBadAttribute($child, "FRU_ID")) {
-            #i.e this child is a fru,we are interrested in non fru devices
-            next;
-        }
-
-        #Fetch the Fru Type
-        if (!$targetObj->isBadAttribute($child, "TYPE")) {
-            $fruType = $targetObj->getAttribute($child, "TYPE");
-        }
-
-        # check whether this fru type is in interested fru types.
-        if (not exists $types{$fruType}) {
-            next;
-        }
-
-        # find the parent fru of this child.
-        my $parent = $targetObj->getTargetParent($child);
-        while ($parent ne ($item->{TARGET})) {
-            $parent = $targetObj->getTargetParent($parent);
-            if (!$targetObj->isBadAttribute($parent, "FRU_ID")) {
-                last;
-            }
-
-        }
-        #if parent of the child is not equal to the item->target
-        #i.e some other fru is parent of this child.
-        if ( $parent ne ($item->{TARGET}) ){
-            next;
-        }
-
-        printDebug("     ".$child);
-        printDebug("     Type:".$fruType );
-        my $childObmcName = Util::getObmcName(\@inventory, $child);
-        writeToFile($fruType, $childObmcName, $fruTypeConfig, $fh);
+    if (!defined $fruTypeConfig->{$fruType}->{'AssociatedTypes'}) {
+        next;
     }
+
+    my $assoTypes = $fruTypeConfig->{$fruType}->{'AssociatedTypes'};
+    for my $type (@$assoTypes) {
+        my @devices = Util::getDevicePath(\@inventory,$targetObj,$type);
+        for my $device (@devices) {
+            writeToFile($type,$device,$fruTypeConfig,$fh);
+        }
+
+    }
+
 }
 close $fh;
 
 #------------------------------------END OF MAIN-----------------------
+
+# Get all the associated types
+sub getAllAssociatedTypes
+{
+   my $fruTypeConfig = $_[0];
+   my @assoTypes;
+   while (my($key, $value) = each %$fruTypeConfig) {
+        #if the key exist and value is also there
+        if (defined $value->{'AssociatedTypes'}) {
+            my $assoTypes = $value->{'AssociatedTypes'};
+            for my $type (@$assoTypes) {
+                push(@assoTypes,$type);
+            }
+        }
+   }
+   return @assoTypes;
+}
 
 #Get the metdata for the incoming frutype from the loaded config file.
 #Write the FRU data into the output file
@@ -127,7 +123,7 @@ sub writeToFile
     #walk over all the fru types and match for the incoming type
     print $fh "  ".$instancePath.":";
     print $fh "\n";
-    my $interfaces = $fruTypeConfig->{$fruType};
+    my $interfaces = $fruTypeConfig->{$fruType}->{'Interfaces'};
     #Walk over all the interfaces as it needs to be written
     while ( my ($interface,$properties) = each %{$interfaces}) {
         print $fh "    ".$interface.":";
@@ -163,3 +159,4 @@ sub printDebug
     my $str = shift;
     print "DEBUG: ", $str, "\n" if $debug;
 }
+
