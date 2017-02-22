@@ -64,9 +64,46 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
         $path = Util::getObmcName(\@inventory, $path);
 
         printDebug("$sensorID : $sensorType : $sensorReadingType :$path \n");
+        writeToFile($sensorType,$sensorReadingType,$path,$sensorTypeConfig,$fh);
 
     }
 
+}
+
+
+
+#Get the metdata for the incoming sensortype from the loaded config file.
+#Write the sensor data into the output file
+
+sub writeToFile
+{
+    my ($sensorType,$sensorReadingType,$path,$sensorTypeConfig,$fh) = @_;
+    print $fh "  sensorType: ".$sensorType;
+    print $fh "\n";
+    print $fh "  path: ".$path;
+    print $fh "\n";
+    print $fh "  sensorReadingType: ".$sensorReadingType;
+    print $fh "\n";
+    print $fh "  interfaces:";
+    print $fh "\n";
+
+    my $interfaces = $sensorTypeConfig->{$sensorType};
+    #Walk over all the interfces as it needs to be written
+    while ( my ($interface,$properties) = each %{$interfaces}) {
+        print $fh "    ".$interface.":";
+        print $fh "\n";
+        #walk over all the properties as it needs to be written
+        while ( my ($dbusProperty,$metadata) = each %{$properties}) {
+                    #will write property named "Property" first then
+                    #other properties.
+            print $fh "      ".$dbusProperty.":";
+            print $fh "\n";
+            for my $key (sort keys %{$metadata}) {
+                print $fh "        $key: "."$metadata->{$key}";
+                print $fh "\n";
+            }
+        }
+    }
 }
 
 # Usage
