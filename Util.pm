@@ -97,6 +97,31 @@ sub adjustI2CAddress
     return $addr;
 }
 
+#Return nearest FRU enclosing the input target
+# $targets = the Targets object
+# $targetName = the target name
+sub getEnclosingFru
+{
+    my ($targets, $targetName) = @_;
+
+    if (($targetName eq "") || (!defined $targetName))
+    {
+        return "";
+    }
+
+    if (!$targets->isBadAttribute($targetName, "RU_TYPE"))
+    {
+        my $ruType = $targets->getAttribute($targetName, "RU_TYPE");
+        if (($ruType eq "FRU") || ($ruType eq "CRU"))
+        {
+            return $targetName;
+        }
+    }
+
+    my $parent = $targets->getTargetParent($targetName);
+    return getEnclosingFru($targets, $parent);
+}
+
 1;
 
 =head1 NAME
@@ -133,6 +158,10 @@ undef if the Target name is not found.
 
 Returns C<I2CAddress> converted from MRW format (8-bit) to the standard 7-bit
 format.
+
+=item getEnclosingFru(C<TargetsObj>, C<Target>)
+
+Finds the nearest FRU enclosing the input Target.
 
 =back
 
