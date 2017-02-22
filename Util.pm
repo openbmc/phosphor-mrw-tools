@@ -83,6 +83,19 @@ sub getDevicePath
     return @devices;
 }
 
+#Convert the MRW I2C address into the standard 7-bit format
+# $addr = the I2C Address
+sub adjustI2CAddress
+{
+    my $addr = shift;
+
+    #MRW holds the 8 bit value.  We need the 7 bit one.
+    $addr = $addr >> 1;
+    $addr = sprintf("0x%X", $addr);
+    $addr = lc $addr;
+
+    return $addr;
+}
 
 1;
 
@@ -115,6 +128,11 @@ undef if the Target name is not found.
 
 =item getDevicePath(C<InventoryItems>, C<TargetsObj>, C<TargetType>)
 #Returns the array of all the device path based on the C<TargetType>.
+
+=item adjustI2CAddress(C<I2CAddress>)
+
+Returns C<I2CAddress> converted from MRW format (8-bit) to the standard 7-bit
+format.
 
 =back
 
