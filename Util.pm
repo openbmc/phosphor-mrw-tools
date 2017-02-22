@@ -161,7 +161,8 @@ Returns an OBMC name corresponding to a Target name. Returns
 undef if the Target name is not found.
 
 =item getDevicePath(C<InventoryItems>, C<TargetsObj>, C<TargetType>)
-#Returns the array of all the device path based on the C<TargetType>.
+
+Returns an array of all device paths (OBMC names)  based on C<TargetType>.
 
 =item adjustI2CAddress(C<I2CAddress>)
 
