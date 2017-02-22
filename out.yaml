@@ -1,0 +1,15 @@
+3:
+    0x52: /system/chassis/motherboard
+    0x77: /system/chassis/motherboard
+    0x60: /system/chassis/motherboard
+11:
+    0x64: /system/chassis/motherboard
+    0x60: /system/chassis/motherboard
+    0x32: /system/chassis/motherboard/boxelder
+    0x51: /system/chassis/motherboard/boxelder
+4:
+    0x4c: /system/chassis/motherboard
+9:
+    0x4a: /system/chassis/motherboard
+5:
+    0x4c: /system/chassis/motherboard
