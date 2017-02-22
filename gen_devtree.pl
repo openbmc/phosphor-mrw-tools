@@ -841,7 +841,7 @@ sub getI2CNodes
         }
 
         #Put it in the format we want to print it in
-        $i2cAddress = adjustI2CAddress($i2cAddress);
+        $i2cAddress = Util::adjustI2CAddress($i2cAddress);
         addRegProp(\%deviceNode, $i2cAddress);
 
         $deviceName = makeNodeName($deviceName, $deviceNode{reg});
@@ -940,21 +940,6 @@ sub getPartDefinedDTProperties
     }
 
     return %props;
-}
-
-
-#Convert the MRW I2C address into the format the dts needs
-#  $addr = the I2C Address
-sub adjustI2CAddress
-{
-    my $addr = shift;
-
-    #MRW holds the 8 bit value.  We need the 7 bit one.
-    $addr = $addr >> 1;
-    $addr = sprintf("0x%X", $addr);
-    $addr = lc $addr;
-
-    return $addr;
 }
 
 
