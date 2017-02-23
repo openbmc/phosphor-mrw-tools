@@ -122,6 +122,15 @@ sub getEnclosingFru
     return getEnclosingFru($targets, $parent);
 }
 
+#Convert I2C port number from MRW scheme to Linux numbering scheme
+# $port = the I2C port number
+sub adjustI2CPort
+{
+    my $port = shift;
+
+    return $port - 1;
+}
+
 1;
 
 =head1 NAME
@@ -162,6 +171,10 @@ format.
 =item getEnclosingFru(C<TargetsObj>, C<Target>)
 
 Finds the nearest FRU enclosing the input Target.
+
+=item adjustI2CPort(C<I2CPort>)
+
+Returns C<I2CPort> converted from MRW numering scheme to Linux numbering scheme.
 
 =back
 
