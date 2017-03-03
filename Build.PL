@@ -8,6 +8,7 @@ Module::Build->new(
                      'gen_fru_properties.pl',
                      'gen_i2c_callouts.pl',
                      'gen_ipmi_fru.pl',
+                     'gen_ipmi_sensor.pl',
                      'gen_led_groups.pl',
                      'gen_openpower_fru.pl',
                      'gen_proc_fsi_callouts.pl',
