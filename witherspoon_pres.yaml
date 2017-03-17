@@ -1,0 +1,21 @@
+- Tach:
+  - Fan:
+    Inventory: /system/chassis/motherboard/fan0
+    Description: /system/chassis/motherboard/fan0
+    Sensors:
+      - fan0
+  - Fan:
+    Inventory: /system/chassis/motherboard/fan1
+    Description: /system/chassis/motherboard/fan1
+    Sensors:
+      - fan1
+  - Fan:
+    Inventory: /system/chassis/motherboard/fan2
+    Description: /system/chassis/motherboard/fan2
+    Sensors:
+      - fan2
+  - Fan:
+    Inventory: /system/chassis/motherboard/fan3
+    Description: /system/chassis/motherboard/fan3
+    Sensors:
+      - fan3
