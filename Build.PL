@@ -11,6 +11,7 @@ Module::Build->new(
                      'gen_ipmi_sensor.pl',
                      'gen_led_groups.pl',
                      'gen_openpower_fru.pl',
+                     'gen_presence_yaml.pl',
                      'hwmon.pl'],
     pm_files => {'Inventory.pm' => 'lib/mrw/Inventory.pm',
                  'Util.pm' => 'lib/mrw/Util.pm'},
