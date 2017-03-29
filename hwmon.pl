@@ -19,9 +19,11 @@ use constant {
 };
 
 my $serverwizFile;
+my $g_outputDir;
 my @hwmon;
 
-GetOptions("x=s" => \$serverwizFile) or printUsage();
+GetOptions("x=s" => \$serverwizFile,
+           "d=s" => \$g_outputDir) or printUsage();
 
 if (not defined $serverwizFile) {
     printUsage();
@@ -270,7 +272,7 @@ sub getAspeedConfFilePath
                 "in the I2C master unit XML\n";
         }
 
-        $path = "ahb/apb/i2c\@$entry->{regBaseAddress}/i2c-bus@" .
+        $path = "$g_outputDir/ahb/apb/i2c\@$entry->{regBaseAddress}/i2c-bus@" .
                 "$entry->{regOffset}";
     }
     else {
@@ -293,6 +295,6 @@ sub getConfFileName
 
 sub printUsage
 {
-    print "$0 -x [XML filename]\n";
+    print "$0 -x [XML filename] -d [output base directory]\n";
     exit(1);
 }
