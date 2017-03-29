@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 use strict;
 use warnings;
 
@@ -6,6 +6,7 @@ use mrw::Targets; # Set of APIs allowing access to parsed ServerWiz2 XML output
 use mrw::Inventory; # To get list of Inventory targets
 use Getopt::Long; # For parsing command line arguments
 use Data::Dumper qw(Dumper); # Dumping blob
+use List::Util qw(first);
 
 # Globals
 my $force           = 0;
@@ -38,6 +39,10 @@ my %invHash;
 # Array of Enclosure Fault LED names. These are generally
 # front-fault-led and rear-fault-led
 my @encFaults;
+
+# These groups are a must in all the systems.
+# Its fine if they don't map to any physical LED
+my @defaultGroup = ("BmcBooted", "PowerOn");
 
 # API used to access parsed XML data
 my $targetObj = Targets->new;
@@ -218,6 +223,15 @@ sub generateYamlFile
     {
         if($group ne $groupCopy)
         {
+            # If one of these is a default group, then delete it from the array
+            # that is being maintained to create one by hand if all default ones
+            # are not defined
+            my $index = first {$defaultGroup[$_] eq $group} 0..$#defaultGroup;
+            if (defined $index)
+            {
+                splice @defaultGroup, $index, 1;
+            }
+
             $groupCopy = '';
             $ledCopy = '';
         }
@@ -243,6 +257,11 @@ sub generateYamlFile
                 print $fh " $hashGroup{$group}{$led}{$property}\n";
             }
         }
+    }
+    # If we need to hand create some of the groups, do so now.
+    foreach my $name (@defaultGroup)
+    {
+        print $fh "$name:\n";
     }
     close $fh;
 }
