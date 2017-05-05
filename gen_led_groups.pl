@@ -143,9 +143,9 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
 
         #remove spaces, because serverwiz isn't good at removing them itself
         $controlGroup =~ s/\s//g;
-        my @groups= split(',', $controlGroup);  #just a long 16x3 = 48 element list
+        my @groups= split(',', $controlGroup);  #just a long 16x4 = 64 element list
 
-        for (my $i = 0; $i < scalar @groups; $i += 3)
+        for (my $i = 0; $i < scalar @groups; $i += 4)
         {
             if (($groups[$i] ne "NA") && ($groups[$i] ne ""))
             {
@@ -155,6 +155,15 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
                 my $blinkFreq = $groups[$i+1];
                 my $action = "'On'";
                 my $period = 0;
+
+                # By default, Blink takes higher priority
+                # Since 0 is used for On, using the same for
+                # ON priority.
+                my $priority = "'Blink'";
+                if($groups[$i+3] eq 0)
+                {
+                    $priority = "'On'";
+                }
 
                 # Period in milli seconds
                 my $dutyCycle = $groups[$i+2];
@@ -169,6 +178,10 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
                 $hashGroup{$groupName}{$fru}{"Action"} = $action;
                 $hashGroup{$groupName}{$fru}{"Period"} = $period;
                 $hashGroup{$groupName}{$fru}{"DutyOn"} = $dutyCycle;
+
+                # Using lowercase priority to help sort the keys and it
+                # must be named priority
+                $hashGroup{$groupName}{$fru}{"priority"} = $priority;
             }
         } # Walk CONTROL_GROUP
     } # Has LED target
@@ -194,6 +207,7 @@ foreach my $key (sort keys %invHash)
         $hashGroup{$groupName}{$encFaults[$led]}{"Action"} = "'On'";
         $hashGroup{$groupName}{$encFaults[$led]}{"Period"} = 0;
         $hashGroup{$groupName}{$encFaults[$led]}{"DutyOn"} = 50;
+        $hashGroup{$groupName}{$encFaults[$led]}{"priority"} = "'Blink'";
     }
 }
 printDebug("\n======================================================================\n");
@@ -238,7 +252,7 @@ sub generateYamlFile
 
         foreach my $led (keys %{ $hashGroup{$group} })
         {
-            foreach my $property (keys %{ $hashGroup{$group}{$led}})
+            foreach my $property (sort keys %{ $hashGroup{$group}{$led}})
             {
                 if($group ne $groupCopy)
                 {
