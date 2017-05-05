@@ -9,6 +9,7 @@ Module::Build->new(
                      'gen_fan_zone_yaml.pl',
                      'gen_fru_properties.pl',
                      'gen_ipmi_fru.pl',
+                     'gen_ipmi_sel.pl',
                      'gen_ipmi_sensor.pl',
                      'gen_led_groups.pl',
                      'gen_openpower_fru.pl',
