@@ -139,6 +139,20 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
             next;
         }
 
+        # By default, Blink takes higher priority
+        my $priority = "'Blink'";
+
+        # Get the priority. Since rest everything is populated,
+        # default to Blink  than err'ing out.
+        if($targetObj->isBadAttribute($ledTarget, "LED_PRIORITY"))
+        {
+            $priority = "'Blink'";
+        }
+        elsif($targetObj->getAttribute($ledTarget, "LED_PRIORITY") eq "ON")
+        {
+            $priority = "'On'";
+        }
+
         # Need this to populate the table incase the device is empty
         my $instance = $targetObj->getInstanceName($ledTarget);
 
@@ -172,11 +186,13 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
                 $hashGroup{$groupName}{$fru}{"Action"} = $action;
                 $hashGroup{$groupName}{$fru}{"Period"} = $period;
                 $hashGroup{$groupName}{$fru}{"DutyOn"} = $dutyCycle;
+                $hashGroup{$groupName}{$fru}{"Priority"} = $priority;
 
                 # Need to update the LampTest group.
                 $hashGroup{$lampTest}{$fru}{"Action"} = "'Blink'";
                 $hashGroup{$lampTest}{$fru}{"Period"} = 1000;
                 $hashGroup{$lampTest}{$fru}{"DutyOn"} = 50;
+                $hashGroup{$lampTest}{$fru}{"Priority"} = "'Blink'";
             }
         } # Walk CONTROL_GROUP
     } # Has LED target
@@ -202,6 +218,7 @@ foreach my $key (sort keys %invHash)
         $hashGroup{$groupName}{$encFaults[$led]}{"Action"} = "'On'";
         $hashGroup{$groupName}{$encFaults[$led]}{"Period"} = 0;
         $hashGroup{$groupName}{$encFaults[$led]}{"DutyOn"} = 50;
+        $hashGroup{$groupName}{$encFaults[$led]}{"Priority"} = "'Blink'";
     }
 }
 printDebug("\n======================================================================\n");
