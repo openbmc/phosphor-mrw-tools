@@ -44,6 +44,9 @@ my @encFaults;
 # Its fine if they don't map to any physical LED
 my @defaultGroup = ("BmcBooted", "PowerOn");
 
+# This group contains all the LEDs with the action Blink
+my $lampTest = "LampTest";
+
 # API used to access parsed XML data
 my $targetObj = Targets->new;
 if($verbose == 1)
@@ -179,9 +182,16 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
                 $hashGroup{$groupName}{$fru}{"Period"} = $period;
                 $hashGroup{$groupName}{$fru}{"DutyOn"} = $dutyCycle;
 
+                # Need to update the LampTest group.
+                $hashGroup{$lampTest}{$fru}{"Action"} = "'Blink'";
+                $hashGroup{$lampTest}{$fru}{"Period"} = 1000;;
+                $hashGroup{$lampTest}{$fru}{"DutyOn"} = 50;
+
+
                 # Using lowercase priority to help sort the keys and it
                 # must be named priority
                 $hashGroup{$groupName}{$fru}{"priority"} = $priority;
+                $hashGroup{$lampTest}{$fru}{"priority"} = "'Blink'";
             }
         } # Walk CONTROL_GROUP
     } # Has LED target
@@ -250,7 +260,7 @@ sub generateYamlFile
             $ledCopy = '';
         }
 
-        foreach my $led (keys %{ $hashGroup{$group} })
+        foreach my $led (sort keys %{ $hashGroup{$group} })
         {
             foreach my $property (sort keys %{ $hashGroup{$group}{$led}})
             {
