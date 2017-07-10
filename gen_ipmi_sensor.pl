@@ -43,7 +43,6 @@ my @interestedTypes = keys %{$sensorTypeConfig};
 my %types;
 
 @types{@interestedTypes} = ();
-
 my @inventory = Inventory::getInventory($targetObj);
 #Process all the targets in the XML
 foreach my $target (sort keys %{$targetObj->getAllTargets()})
@@ -63,7 +62,8 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
         $sensorReadingType = $targetObj->getAttribute($target,
                              "IPMI_SENSOR_READING_TYPE");
 
-        $path = $targetObj->getAttribute($target, "INSTANCE_PATH");
+ 
+       $path = $targetObj->getAttribute($target, "INSTANCE_PATH");
 
         #not interested in this sensortype
         next if (not exists $types{$sensorType});
@@ -106,11 +106,19 @@ sub writeToFile
 {
     my ($sensorType,$sensorReadingType,$path,$sensorTypeConfig,$fh) = @_;
     print $fh "  sensorType: ".$sensorType."\n";
-    print $fh "  path: ".$path."\n";
+    if (defined ( $sensorTypeConfig->{$sensorType}->{"path"})){
+        print $fh "  path: ".$sensorTypeConfig->{$sensorType}->{"path"}."\n";
+    }
+    else{
+        print $fh "  path: ".$path."\n";
+    }
     print $fh "  sensorReadingType: ".$sensorReadingType."\n";
+    print $fh "  updatePath: ".$sensorTypeConfig->{$sensorType}->{"updatePath"}."\n";
+    print $fh "  updateInterface: ".$sensorTypeConfig->{$sensorType}->{"updateInterface"}."\n";
+    print $fh "  command: ".$sensorTypeConfig->{$sensorType}->{"command"}."\n";
     print $fh "  interfaces:"."\n";
 
-    my $interfaces = $sensorTypeConfig->{$sensorType};
+    my $interfaces = $sensorTypeConfig->{$sensorType}->{"interfaces"};
     #Walk over all the interfces as it needs to be written
     while (my ($interface,$properties) = each %{$interfaces}) {
         print $fh "    ".$interface.":\n";
@@ -119,10 +127,16 @@ sub writeToFile
                     #will write property named "Property" first then
                     #other properties.
             print $fh "      ".$dbusProperty.":\n";
-            while (my ( $offset,$values) = each %{$dbusPropertyValue}) {
-                print $fh "        $offset:\n";
-                while (my ( $key,$value) = each %{$values})  {
-                    print $fh "          $key: ". $value."\n";
+            while (my ( $readingType, $rtypeValues) = each %{$dbusPropertyValue}) {
+                print $fh "        ".$readingType.":\n";
+                while (my ( $byteOffset, $boffsetValues) = each %{$rtypeValues}) {
+                    print $fh "          ".$byteOffset.":\n";
+                    while (my ( $offset,$values) = each %{$boffsetValues}) {
+                        print $fh "            $offset:\n";
+                        while (my ( $key,$value) = each %{$values})  {
+                            print $fh "              $key: ". $value."\n";
+                        }
+                    }
                 }
             }
         }
