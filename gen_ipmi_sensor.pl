@@ -79,8 +79,16 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
         #removing the string "instance:" from path
         $path =~ s/^instance:/\//;
 
+        #get the last word from the path to check whether it is an occ or
+        #something without a proper instance path.
+        #if instance path is sys0 then get the path value from the yaml
+        #if it is a occ path, get the path from yaml and add the occ instance
+        #number to it.
         my ($str1,$str2) = split(/\/([^\/]+)$/, $path);
-        if($str2 eq "occ"){
+        if($path eq "/sys-0"){
+            $obmcPath = $sensorTypeConfig->{$sensorType}->{"path"};
+        }
+        elsif($str2 eq "occ"){
             my ($sys, $node, $mb, $sok, $mod, $proc)  = split /\//, $str1;
             my ($nm,$occNum) = split(/-([^-]+)$/, $sok);
 
@@ -121,6 +129,8 @@ sub writeToFile
     print $fh "  updatePath: ".$sensorTypeConfig->{$sensorType}->{"updatePath"}."\n";
     print $fh "  updateInterface: ".$sensorTypeConfig->{$sensorType}->{"updateInterface"}."\n";
     print $fh "  updateCommand: ".$sensorTypeConfig->{$sensorType}->{"updateCommand"}."\n";
+    print $fh "  readingType: ".$sensorTypeConfig->{$sensorType}->{"readingType"}."\n";
+    print $fh "  byteOffset: ".$sensorTypeConfig->{$sensorType}->{"byteOffset"}."\n";
     print $fh "  interfaces:"."\n";
 
     my $interfaces = $sensorTypeConfig->{$sensorType}->{"interfaces"};
