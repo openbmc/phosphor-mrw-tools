@@ -79,12 +79,21 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
         #removing the string "instance:" from path
         $path =~ s/^instance:/\//;
 
-        $obmcPath = Util::getObmcName(\@inventory, $path);
+        my ($str1,$str2) = split(/\/([^\/]+)$/, $path);
+        if($str2 eq "occ"){
+            my ($sys, $node, $mb, $sok, $mod, $proc)  = split /\//, $str1;
+            my ($nm,$occNum) = split(/-([^-]+)$/, $sok);
 
-        #if unable to get the obmc path then die
-        if (not defined $obmcPath) {
-            close $fh;
-            die("Unable to get the obmc path for path=$path");
+            $obmcPath =  $sensorTypeConfig->{$sensorType}->{"path"}."occ".$occNum;
+        }
+        else{
+            $obmcPath = Util::getObmcName(\@inventory, $path);
+
+            #if unable to get the obmc path then die
+            if (not defined $obmcPath) {
+                close $fh;
+                die("Unable to get the obmc path for path=$path");
+           }
         }
 
         print $fh $sensorID.":\n";
@@ -107,10 +116,14 @@ sub writeToFile
     my ($sensorType,$sensorReadingType,$path,$sensorTypeConfig,$fh) = @_;
     print $fh "  sensorType: ".$sensorType."\n";
     print $fh "  path: ".$path."\n";
+
     print $fh "  sensorReadingType: ".$sensorReadingType."\n";
+    print $fh "  updatePath: ".$sensorTypeConfig->{$sensorType}->{"updatePath"}."\n";
+    print $fh "  updateInterface: ".$sensorTypeConfig->{$sensorType}->{"updateInterface"}."\n";
+    print $fh "  updateCommand: ".$sensorTypeConfig->{$sensorType}->{"updateCommand"}."\n";
     print $fh "  interfaces:"."\n";
 
-    my $interfaces = $sensorTypeConfig->{$sensorType};
+    my $interfaces = $sensorTypeConfig->{$sensorType}->{"interfaces"};
     #Walk over all the interfces as it needs to be written
     while (my ($interface,$properties) = each %{$interfaces}) {
         print $fh "    ".$interface.":\n";
