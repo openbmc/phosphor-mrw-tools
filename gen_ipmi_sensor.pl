@@ -79,8 +79,13 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
         #removing the string "instance:" from path
         $path =~ s/^instance:/\//;
 
+        print STDOUT $path."\n"; 
+
         my ($str1,$str2) = split(/\/([^\/]+)$/, $path);
-        if($str2 eq "occ"){
+        if($path eq "/sys-0"){
+            $obmcPath = $sensorTypeConfig->{$sensorType}->{"path"};
+        }
+        elsif($str2 eq "occ"){
             my ($sys, $node, $mb, $sok, $mod, $proc)  = split /\//, $str1;
             my ($nm,$occNum) = split(/-([^-]+)$/, $sok);
  
@@ -121,6 +126,8 @@ sub writeToFile
     print $fh "  updatePath: ".$sensorTypeConfig->{$sensorType}->{"updatePath"}."\n";
     print $fh "  updateInterface: ".$sensorTypeConfig->{$sensorType}->{"updateInterface"}."\n";
     print $fh "  updateCommand: ".$sensorTypeConfig->{$sensorType}->{"updateCommand"}."\n";
+    print $fh "  readingType: ".$sensorTypeConfig->{$sensorType}->{"readingType"}."\n";
+    print $fh "  byteOffset: ".$sensorTypeConfig->{$sensorType}->{"byteOffset"}."\n";
     print $fh "  interfaces:"."\n";
 
     my $interfaces = $sensorTypeConfig->{$sensorType}->{"interfaces"};
