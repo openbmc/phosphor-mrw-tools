@@ -105,13 +105,18 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
         $obmcPath = Util::getObmcName(\@inventory,$path);
         #if unable to get the obmc path then get from yaml
         if (not defined $obmcPath) {
-            my @pathelements =split(/\//,$path);
-            foreach my $elem (@pathelements) {
-                #split element-instance_number
-                my ($elemName,$elemNum) = split(/-([^-]+)$/,$elem);
-                if((defined $elemName) and ($elemName eq "proc_socket")) {
-                    $obmcPath = $sensorTypeConfig->{$sensorType}->{"path"}."occ".$elemNum;
-                    last;
+            if ($path eq "/sys-0") {
+                $obmcPath = $sensorTypeConfig->{$sensorType}->{"path"};
+            }
+            else {
+                my @pathelements =split(/\//,$path);
+                foreach my $elem (@pathelements) {
+                    #split element-instance_number
+                    my ($elemName,$elemNum) = split(/-([^-]+)$/,$elem);
+                    if ((defined $elemName) and ($elemName eq "proc_socket")) {
+                        $obmcPath = $sensorTypeConfig->{$sensorType}->{"path"}."occ".$elemNum;
+                        last;
+                    }
                 }
             }
         }
@@ -146,6 +151,8 @@ sub writeToFile
     print $fh "  updatePath: ".$sensorTypeConfig->{$sensorType}->{"updatePath"}."\n";
     print $fh "  updateInterface: ".$sensorTypeConfig->{$sensorType}->{"updateInterface"}."\n";
     print $fh "  updateCommand: ".$sensorTypeConfig->{$sensorType}->{"updateCommand"}."\n";
+    print $fh "  readingType: ".$sensorTypeConfig->{$sensorType}->{"readingType"}."\n";
+    print $fh "  byteOffset: ".$sensorTypeConfig->{$sensorType}->{"byteOffset"}."\n";
     print $fh "  interfaces:"."\n";
 
     my $interfaces = $sensorTypeConfig->{$sensorType}->{"interfaces"};
