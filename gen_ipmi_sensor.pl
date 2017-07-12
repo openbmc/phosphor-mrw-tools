@@ -12,18 +12,18 @@ use YAML::Tiny qw(LoadFile);
 my $serverwizFile  = "";
 my $debug           = 0;
 my $outputFile     = "";
-my $metaDataFile   = "";
+my $metaDir   = "";
 
 # Command line argument parsing
 GetOptions(
 "i=s" => \$serverwizFile,    # string
-"m=s" => \$metaDataFile,     # string
+"m=s" => \$metaDir,     # string
 "o=s" => \$outputFile,       # string
 "d"   => \$debug,
 )
 or printUsage();
 
-if (($serverwizFile eq "") or ($outputFile eq "") or ($metaDataFile eq ""))
+if (($serverwizFile eq "") or ($outputFile eq "") or ($metaDir eq ""))
 {
     printUsage();
 }
@@ -36,8 +36,26 @@ $targetObj->loadXML($serverwizFile);
 #Get the metadata for that sensor from the metadata file.
 #Merge the data into the outputfile
 
+my $sensorTypeConfig;
+my $tmpSensor;
+opendir my $dir,$metaDir or die "Cannot open directory: $!";
+my @files = readdir $dir;
+foreach my $file (@files){
+    my ($filename,$extn) = split(/\.([^\.]+)$/,$file);
+    if((defined($extn)) and ( $extn eq "yaml")) {
+        my $metaDataFile = $metaDir."/".$file;
+        my $tmpSensor = LoadFile($metaDataFile);
+        if(!keys %{$sensorTypeConfig}) {
+            %{$sensorTypeConfig} = %{$tmpSensor};
+        }
+        else {
+            %{$sensorTypeConfig} = (%{$sensorTypeConfig},%{$tmpSensor});
+        }
+    }
+}
+
+
 open(my $fh, '>', $outputFile) or die "Could not open file '$outputFile' $!";
-my $sensorTypeConfig = LoadFile($metaDataFile);
 
 my @interestedTypes = keys %{$sensorTypeConfig};
 my %types;
@@ -79,9 +97,25 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
         #removing the string "instance:" from path
         $path =~ s/^instance:/\//;
 
-        $obmcPath = Util::getObmcName(\@inventory, $path);
+        #get the last word from the path to check whether it is an occ or
+        #something without a proper instance path.
+        #if instance path is sys0 then get the path value from the yaml
+        #if it is a occ path, get the path from yaml and add the occ instance
+        #number to it.
+        $obmcPath = Util::getObmcName(\@inventory,$path);
+        #if unable to get the obmc path then get from yaml
+        if (not defined $obmcPath) {
+            my @pathelements =split(/\//,$path);
+            foreach my $elem (@pathelements) {
+                #split element-instance_number
+                my ($elemName,$elemNum) = split(/-([^-]+)$/,$elem);
+                if((defined $elemName) and ($elemName eq "proc_socket")) {
+                    $obmcPath = $sensorTypeConfig->{$sensorType}->{"path"}."occ".$elemNum;
+                    last;
+                }
+            }
+        }
 
-        #if unable to get the obmc path then die
         if (not defined $obmcPath) {
             close $fh;
             die("Unable to get the obmc path for path=$path");
@@ -107,10 +141,13 @@ sub writeToFile
     my ($sensorType,$sensorReadingType,$path,$sensorTypeConfig,$fh) = @_;
     print $fh "  sensorType: ".$sensorType."\n";
     print $fh "  path: ".$path."\n";
+
     print $fh "  sensorReadingType: ".$sensorReadingType."\n";
+    print $fh "  updatePath: ".$sensorTypeConfig->{$sensorType}->{"updatePath"}."\n";
+    print $fh "  updateInterface: ".$sensorTypeConfig->{$sensorType}->{"updateInterface"}."\n";
     print $fh "  interfaces:"."\n";
 
-    my $interfaces = $sensorTypeConfig->{$sensorType};
+    my $interfaces = $sensorTypeConfig->{$sensorType}->{"interfaces"};
     #Walk over all the interfces as it needs to be written
     while (my ($interface,$properties) = each %{$interfaces}) {
         print $fh "    ".$interface.":\n";
