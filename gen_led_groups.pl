@@ -36,9 +36,9 @@ my %hashGroup;
 # hash of targets to Names that have the FRU Inventory instances
 my %invHash;
 
-# Array of Enclosure Fault LED names. These are generally
-# front-fault-led and rear-fault-led
-my @encFaults;
+# Hash of Enclosure Fault LED names and their properties
+# These are generally front-fault-led and rear-fault-led
+my %encFaults;
 
 # These groups are a must in all the systems.
 # Its fine if they don't map to any physical LED
@@ -100,15 +100,6 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
         my $fruPath = '';
         my $device = '';
 
-        # Get if this LED is a ENC-FAULT type.
-        if(!$targetObj->isBadAttribute($target, "LED_TYPE"))
-        {
-            if("ENC-FAULT" eq $targetObj->getAttribute($ledTarget, "LED_TYPE"))
-            {
-                push @encFaults, $targetObj->getInstanceName($ledTarget);
-            }
-        }
-
         # Find if this LED is associated with a FRU.
         # Example, FAN will have LED on that assembly.
         my $conns = $targetObj->findConnections($ledTarget, "LOGICAL_ASSOCIATION");
@@ -153,6 +144,20 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
         # Need this to populate the table incase the device is empty
         my $instance = $targetObj->getInstanceName($ledTarget);
 
+        # All the fan instances have fan-fault-led and need to extract the
+        # real name. If not, then what's in the instance holds good
+        my $name = ($device eq '') ? $instance : $device;
+
+        # Get if this LED is a ENC-FAULT type.
+        if(!$targetObj->isBadAttribute($target, "LED_TYPE"))
+        {
+            if("ENC-FAULT" eq $targetObj->getAttribute($ledTarget, "LED_TYPE"))
+            {
+                $encFaults{$name} = $priority;
+            }
+        }
+
+        # Defines the LEDs and the Groups that they belong to
         my $controlGroup = $targetObj->getAttribute($ledTarget, "CONTROL_GROUPS");
 
         #remove spaces, because serverwiz isn't good at removing them itself
@@ -179,17 +184,19 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
                 }
 
                 # Insert into hash map;
-                my $fru = ($device eq '') ? $instance : $device;
-                $hashGroup{$groupName}{$fru}{"Action"} = $action;
-                $hashGroup{$groupName}{$fru}{"Period"} = $period;
-                $hashGroup{$groupName}{$fru}{"DutyOn"} = $dutyCycle;
-                $hashGroup{$groupName}{$fru}{"Priority"} = $priority;
+                $hashGroup{$groupName}{$name}{"Action"} = $action;
+                $hashGroup{$groupName}{$name}{"Period"} = $period;
+                $hashGroup{$groupName}{$name}{"DutyOn"} = $dutyCycle;
+                $hashGroup{$groupName}{$name}{"Priority"} = $priority;
 
                 # Need to update the LampTest group.
-                $hashGroup{$lampTest}{$fru}{"Action"} = "'Blink'";
-                $hashGroup{$lampTest}{$fru}{"Period"} = 1000;
-                $hashGroup{$lampTest}{$fru}{"DutyOn"} = 50;
-                $hashGroup{$lampTest}{$fru}{"Priority"} = "'Blink'";
+                $hashGroup{$lampTest}{$name}{"Action"} = "'Blink'";
+                $hashGroup{$lampTest}{$name}{"Period"} = 1000;
+                $hashGroup{$lampTest}{$name}{"DutyOn"} = 50;
+
+                # Priority of a particular LED needs to stay SAME across
+                # all groups
+                $hashGroup{$lampTest}{$name}{"Priority"} = $priority;
             }
         } # Walk CONTROL_GROUP
     } # Has LED target
@@ -210,12 +217,15 @@ foreach my $key (sort keys %invHash)
     printDebug("$device :: $groupName\n");
 
     # Setup roll-up LEDs to the ones that are of type ENC-FAULT
-    foreach my $led (0 .. $#encFaults)
+    foreach my $led (sort keys %encFaults)
     {
-        $hashGroup{$groupName}{$encFaults[$led]}{"Action"} = "'On'";
-        $hashGroup{$groupName}{$encFaults[$led]}{"Period"} = 0;
-        $hashGroup{$groupName}{$encFaults[$led]}{"DutyOn"} = 50;
-        $hashGroup{$groupName}{$encFaults[$led]}{"Priority"} = "'Blink'";
+        $hashGroup{$groupName}{$led}{"Action"} = "'On'";
+        $hashGroup{$groupName}{$led}{"Period"} = 0;
+        $hashGroup{$groupName}{$led}{"DutyOn"} = 50;
+
+        # Priority of a particular LED needs to stay SAME across
+        # all groups
+        $hashGroup{$groupName}{$led}{"Priority"} = $encFaults{$led};
     }
 }
 printDebug("\n======================================================================\n");
