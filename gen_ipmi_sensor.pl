@@ -4,7 +4,7 @@ use warnings;
 
 use mrw::Targets;
 use mrw::Inventory;
-use mrw::Util;
+#use mrw::Util;
 use Getopt::Long; # For parsing command line arguments
 use YAML::Tiny qw(LoadFile);
 
