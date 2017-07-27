@@ -12,18 +12,18 @@ use YAML::Tiny qw(LoadFile);
 my $serverwizFile  = "";
 my $debug           = 0;
 my $outputFile     = "";
-my $metaDir   = "";
+my $metaDataFile   = "";
 
 # Command line argument parsing
 GetOptions(
 "i=s" => \$serverwizFile,    # string
-"m=s" => \$metaDir,     # string
+"m=s" => \$metaDataFile,     # string
 "o=s" => \$outputFile,       # string
 "d"   => \$debug,
 )
 or printUsage();
 
-if (($serverwizFile eq "") or ($outputFile eq "") or ($metaDir eq ""))
+if (($serverwizFile eq "") or ($outputFile eq "") or ($metaDataFile eq ""))
 {
     printUsage();
 }
@@ -36,26 +36,8 @@ $targetObj->loadXML($serverwizFile);
 #Get the metadata for that sensor from the metadata file.
 #Merge the data into the outputfile
 
-my $sensorTypeConfig;
-my $tmpSensor;
-opendir my $dir,$metaDir or die "Cannot open directory: $!";
-my @files = readdir $dir;
-foreach my $file (@files){
-    my ($filename,$extn) = split(/\.([^\.]+)$/,$file);
-    if((defined($extn)) and ( $extn eq "yaml")) {
-        my $metaDataFile = $metaDir."/".$file;
-        my $tmpSensor = LoadFile($metaDataFile);
-        if(!keys %{$sensorTypeConfig}) {
-            %{$sensorTypeConfig} = %{$tmpSensor};
-        }
-        else {
-            %{$sensorTypeConfig} = (%{$sensorTypeConfig},%{$tmpSensor});
-        }
-    }
-}
-
-
 open(my $fh, '>', $outputFile) or die "Could not open file '$outputFile' $!";
+my $sensorTypeConfig = LoadFile($metaDataFile);
 
 my @interestedTypes = keys %{$sensorTypeConfig};
 my %types;
@@ -76,7 +58,7 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
 
         $sensorID = $targetObj->getAttribute($target, "IPMI_SENSOR_ID");
 
-        $sensorType = $targetObj->getAttribute($target, "IPMI_SENSOR_TYPE");
+        $sensorType = hex($targetObj->getAttribute($target, "IPMI_SENSOR_TYPE"));
 
         $sensorReadingType = $targetObj->getAttribute($target,
                              "IPMI_SENSOR_READING_TYPE");
@@ -104,7 +86,7 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
         #number to it.
         $obmcPath = Util::getObmcName(\@inventory,$path);
         #if unable to get the obmc path then get from yaml
-        if (not defined $obmcPath) {
+        if ((not defined $obmcPath) or ($obmcPath eq "/system")){
             if ($path eq "/sys-0") {
                 $obmcPath = $sensorTypeConfig->{$sensorType}->{"path"};
             }
@@ -128,9 +110,12 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
 
         print $fh $sensorID.":\n";
 
+        my $serviceInterface = $sensorTypeConfig->{$sensorType}->{"serviceInterface"};
+        my $readingType = $sensorTypeConfig->{$sensorType}->{"readingType"};
+
         printDebug("$sensorID : $sensorType : $sensorReadingType :$obmcPath \n");
 
-        writeToFile($sensorType,$sensorReadingType,$obmcPath,$sensorTypeConfig,$fh);
+        writeToFile($sensorType,$sensorReadingType,$obmcPath,$serviceInterface,$readingType,$sensorTypeConfig,$fh);
 
     }
 
@@ -143,18 +128,13 @@ close $fh;
 
 sub writeToFile
 {
-    my ($sensorType,$sensorReadingType,$path,$sensorTypeConfig,$fh) = @_;
+    my ($sensorType,$sensorReadingType,$path,$serviceInterface,$readingType,$sensorTypeConfig,$fh) = @_;
     print $fh "  sensorType: ".$sensorType."\n";
     print $fh "  path: ".$path."\n";
 
     print $fh "  sensorReadingType: ".$sensorReadingType."\n";
-    print $fh "  updateInterface: ".$sensorTypeConfig->{$sensorType}->{"updateInterface"}."\n";
-    if (defined($sensorTypeConfig->{$sensorType}->{"readingType"})) {
-        print $fh "  readingType: ".$sensorTypeConfig->{$sensorType}->{"readingType"}."\n";
-    }
-    if (defined($sensorTypeConfig->{$sensorType}->{"byteOffset"})) {
-        print $fh "  byteOffset: ".$sensorTypeConfig->{$sensorType}->{"byteOffset"}."\n";
-    }
+    print $fh "  serviceInterface: ".$serviceInterface."\n";
+    print $fh "  readingType: ".$readingType."\n";
     print $fh "  interfaces:"."\n";
 
     my $interfaces = $sensorTypeConfig->{$sensorType}->{"interfaces"};
