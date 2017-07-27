@@ -104,7 +104,7 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
         #number to it.
         $obmcPath = Util::getObmcName(\@inventory,$path);
         #if unable to get the obmc path then get from yaml
-        if (not defined $obmcPath) {
+        if ((not defined $obmcPath) or ($obmcPath eq "/system")){
             if ($path eq "/sys-0") {
                 $obmcPath = $sensorTypeConfig->{$sensorType}->{"path"};
             }
@@ -151,9 +151,6 @@ sub writeToFile
     print $fh "  updateInterface: ".$sensorTypeConfig->{$sensorType}->{"updateInterface"}."\n";
     if (defined($sensorTypeConfig->{$sensorType}->{"readingType"})) {
         print $fh "  readingType: ".$sensorTypeConfig->{$sensorType}->{"readingType"}."\n";
-    }
-    if (defined($sensorTypeConfig->{$sensorType}->{"byteOffset"})) {
-        print $fh "  byteOffset: ".$sensorTypeConfig->{$sensorType}->{"byteOffset"}."\n";
     }
     print $fh "  interfaces:"."\n";
 
