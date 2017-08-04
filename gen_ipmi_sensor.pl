@@ -37,6 +37,7 @@ $targetObj->loadXML($serverwizFile);
 #Merge the data into the outputfile
 
 my $sensorTypeConfig;
+my $hardcodedSensorConfig;
 my $tmpSensor;
 opendir my $dir,$metaDir or die "Cannot open directory: $!";
 my @files = readdir $dir;
@@ -45,11 +46,21 @@ foreach my $file (@files){
     if((defined($extn)) and ( $extn eq "yaml")) {
         my $metaDataFile = $metaDir."/".$file;
         my $tmpSensor = LoadFile($metaDataFile);
-        if(!keys %{$sensorTypeConfig}) {
-            %{$sensorTypeConfig} = %{$tmpSensor};
-        }
-        else {
-            %{$sensorTypeConfig} = (%{$sensorTypeConfig},%{$tmpSensor});
+        my @splits = split(/-/,$filename);
+        if ((defined $splits[0]) and ($splits[0] eq "hardcoded")) {
+            if(!keys %{$hardcodedSensorConfig}) {
+                %{$hardcodedSensorConfig} = %{$tmpSensor};
+            }
+            else {
+                %{$hardcodedSensorConfig} = (%{$hardcodedSensorConfig},%{$tmpSensor});
+            }
+        } else {
+            if(!keys %{$sensorTypeConfig}) {
+                %{$sensorTypeConfig} = %{$tmpSensor};
+            }
+            else {
+                %{$sensorTypeConfig} = (%{$sensorTypeConfig},%{$tmpSensor});
+            }
         }
     }
 }
@@ -126,14 +137,31 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
             die("Unable to get the obmc path for path=$path");
         }
 
-        print $fh $sensorID.":\n";
+        #if this sensor is part of hardcoded configuration do not write
+        if (not defined $hardcodedSensorConfig->{$sensorID}) {
+            print $fh $sensorID.":\n";
+            my $serviceInterface = $sensorTypeConfig->{$sensorType}->{"serviceInterface"};
+            my $readingType = $sensorTypeConfig->{$sensorType}->{"readingType"};
 
-        printDebug("$sensorID : $sensorType : $sensorReadingType :$obmcPath \n");
+            printDebug("$sensorID : $sensorType : $sensorReadingType :$obmcPath \n");
 
-        writeToFile($sensorType,$sensorReadingType,$obmcPath,$sensorTypeConfig,$fh);
+            writeToFile($sensorType,$sensorReadingType,$obmcPath,$serviceInterface,$readingType,$sensorTypeConfig,$fh);
+        }
 
     }
 
+}
+
+foreach my $sensorID  (keys %{$hardcodedSensorConfig}) {
+    print $fh $sensorID.":\n";
+    my $sensorType = $hardcodedSensorConfig->{$sensorID}->{"sensorType"};
+    my $sensorReadingType = $hardcodedSensorConfig->{$sensorID}->{"sensorReadingType"};
+    my $obmcPath = $hardcodedSensorConfig->{$sensorID}->{"path"};
+    my $serviceInterface = $hardcodedSensorConfig->{$sensorID}->{"serviceInterface"};
+    my $readingType = $hardcodedSensorConfig->{$sensorID}->{"readingType"};
+    printDebug("$sensorID : $sensorType : $sensorReadingType :$obmcPath \n");
+
+    writeToFile($sensorType,$sensorReadingType,$obmcPath,$serviceInterface,$readingType,$hardcodedSensorConfig,$fh);
 }
 close $fh;
 
@@ -143,15 +171,12 @@ close $fh;
 
 sub writeToFile
 {
-    my ($sensorType,$sensorReadingType,$path,$sensorTypeConfig,$fh) = @_;
+    my ($sensorType,$sensorReadingType,$path,$serviceInterface,$readingType,$sensorTypeConfig,$fh) = @_;
     print $fh "  sensorType: ".$sensorType."\n";
     print $fh "  path: ".$path."\n";
-
     print $fh "  sensorReadingType: ".$sensorReadingType."\n";
-    print $fh "  serviceInterface: ".$sensorTypeConfig->{$sensorType}->{"serviceInterface"}."\n";
-    if (defined($sensorTypeConfig->{$sensorType}->{"readingType"})) {
-        print $fh "  readingType: ".$sensorTypeConfig->{$sensorType}->{"readingType"}."\n";
-    }
+    print $fh "  serviceInterface: ".$serviceInterface."\n";
+    print $fh "  readingType: ".$readingType."\n";
     print $fh "  interfaces:"."\n";
 
     my $interfaces = $sensorTypeConfig->{$sensorType}->{"interfaces"};
