@@ -13,11 +13,13 @@ my $serverwizFile  = "";
 my $debug           = 0;
 my $outputFile     = "";
 my $metaDataFile   = "";
+my $fruConfigFile    = "";
 
 # Command line argument parsing
 GetOptions(
 "i=s" => \$serverwizFile,    # string
 "m=s" => \$metaDataFile,     # string
+"f=s" => \$fruConfigFile,    # string
 "o=s" => \$outputFile,       # string
 "d"   => \$debug,
 )
@@ -44,6 +46,8 @@ my %types;
 
 @types{@interestedTypes} = ();
 
+my $fruConfig = LoadFile($fruConfigFile);
+
 my @inventory = Inventory::getInventory($targetObj);
 #Process all the targets in the XML
 foreach my $target (sort keys %{$targetObj->getAllTargets()})
@@ -58,12 +62,13 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
 
         $sensorID = $targetObj->getAttribute($target, "IPMI_SENSOR_ID");
 
-        $sensorType = hex($targetObj->getAttribute($target, "IPMI_SENSOR_TYPE"));
+        $sensorType = $targetObj->getAttribute($target, "IPMI_SENSOR_TYPE");
 
         $sensorReadingType = $targetObj->getAttribute($target,
                              "IPMI_SENSOR_READING_TYPE");
 
         $path = $targetObj->getAttribute($target, "INSTANCE_PATH");
+
 
         #not interested in this sensortype
         next if (not exists $types{$sensorType});
@@ -108,6 +113,11 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
             die("Unable to get the obmc path for path=$path");
         }
 
+        my $replacable = 0;
+        if (defined($fruConfig->{$obmcPath}) and ($fruConfig->{$obmcPath}->{"xyz.openbmc_project.Inventory.Decorator.Replaceable"}->{"FieldReplaceable"} eq "true"))
+        {
+            $replacable = 1;
+        }
         print $fh $sensorID.":\n";
 
         my $serviceInterface = $sensorTypeConfig->{$sensorType}->{"serviceInterface"};
@@ -115,7 +125,7 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
 
         printDebug("$sensorID : $sensorType : $sensorReadingType :$obmcPath \n");
 
-        writeToFile($sensorType,$sensorReadingType,$obmcPath,$serviceInterface,$readingType,$sensorTypeConfig,$fh);
+        writeToFile($sensorType,$sensorReadingType,$obmcPath,$serviceInterface,$readingType,$replacable,$sensorTypeConfig,$fh);
 
     }
 
@@ -128,7 +138,7 @@ close $fh;
 
 sub writeToFile
 {
-    my ($sensorType,$sensorReadingType,$path,$serviceInterface,$readingType,$sensorTypeConfig,$fh) = @_;
+    my ($sensorType,$sensorReadingType,$path,$serviceInterface,$readingType,$replacable,$sensorTypeConfig,$fh) = @_;
     print $fh "  sensorType: ".$sensorType."\n";
     print $fh "  path: ".$path."\n";
 
@@ -152,6 +162,27 @@ sub writeToFile
                     print $fh "            $key: ". $value."\n";
                 }
             }
+        }
+    }
+
+    if (not defined($sensorTypeConfig->{$sensorType}->{"overrides"})) {
+        print $fh "  overrides: none\n";
+    } else {
+        print $fh "  overrides:\n";
+        my $overrides = $sensorTypeConfig->{$sensorType}->{"overrides"};
+        while (my ($override,$properties) = each %{$overrides}) {
+            if ($override eq "skipupdate") {
+                if (($properties->{"skiptype"} eq "nonfru") and ($replacable == 0)) {
+                    print $fh "    ".$override.":\n";
+                    while (my ( $offset,$condition) = each %{$properties}) {
+                        if ($offset ne "skiptype") {
+                            print $fh "      $offset: ". $condition."\n";
+                        }
+                    }
+                } else {
+                    print $fh "     $override: none\n";
+                }
+            }  
         }
     }
 }
