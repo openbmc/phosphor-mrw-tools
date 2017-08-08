@@ -4,7 +4,8 @@ use strict;
 use warnings;
 
 #Target types to always include in the inventory if present
-my %TYPES = (SYS => 1, NODE => 1, PROC => 1, BMC => 1, GPU => 1, CORE => 1);
+my %TYPES = (SYS => 1, NODE => 1, PROC => 1,
+             BMC => 1, GPU => 1, CORE => 1, OCC => 1);
 
 #RU_TYPES of cards to include
 #FRU = field replaceable unit, CRU = customer replaceable unit
