@@ -5,7 +5,6 @@ use warnings;
 use mrw::Targets; # Set of APIs allowing access to parsed ServerWiz2 XML output
 use mrw::Inventory; # To get list of Inventory targets
 use Getopt::Long; # For parsing command line arguments
-use POSIX; # For checking if something is a digit
 
 # Globals
 my $force           = 0;
@@ -89,9 +88,6 @@ sub generateYamlFile
 
     foreach my $instance (sort keys %occHash)
     {
-        # If the instance is not a digit, then error
-        isdigit($instance) or die "'$instance' does not have instance number";
-
         # YAML with list of {Instance:SensorID} dictionary
         print $fh "- Instance: ";
         print $fh "$instance\n";
