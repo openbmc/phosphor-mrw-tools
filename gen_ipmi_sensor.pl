@@ -53,8 +53,13 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
     my $sensorReadingType = '';
     my $path = '';
     my $obmcPath = '';
+    my $sensorName = '';
 
     if ($targetObj->getTargetType($target) eq "unit-ipmi-sensor") {
+
+        $sensorName = $targetObj->getInstanceName($target);
+        #not interested in this sensortype
+        next if (not exists $types{$sensorName});
 
         $sensorID = $targetObj->getAttribute($target, "IPMI_SENSOR_ID");
 
@@ -66,9 +71,6 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
 
         $path = $targetObj->getAttribute($target, "INSTANCE_PATH");
 
-        #not interested in this sensortype
-        next if (not exists $types{$sensorType});
-
         #if there is ipmi sensor without sensorid or sensorReadingType or
         #Instance path then die
 
@@ -77,32 +79,18 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
             die("sensor without info for target=$target");
         }
 
-        #removing the string "instance:" from path
-        $path =~ s/^instance:/\//;
-
-        #get the last word from the path to check whether it is an occ or
-        #something without a proper instance path.
-        #if instance path is sys0 then get the path value from the yaml
-        #if it is a occ path, get the path from yaml and add the occ instance
-        #number to it.
-        $obmcPath = Util::getObmcName(\@inventory,$path);
-        #if unable to get the obmc path then get from yaml
-        if ((not defined $obmcPath) or ($obmcPath eq "/system")){
-            if ($path eq "/sys-0") {
-                $obmcPath = $sensorTypeConfig->{$sensorType}->{"path"};
-            }
-            else {
-                my @pathelements =split(/\//,$path);
-                foreach my $elem (@pathelements) {
-                    #split element-instance_number
-                    my ($elemName,$elemNum) = split(/-([^-]+)$/,$elem);
-                    if ((defined $elemName) and ($elemName eq "proc_socket")) {
-                        $obmcPath = $sensorTypeConfig->{$sensorType}->{"path"}."occ".$elemNum;
-                        last;
-                    }
-                }
-            }
+        if (exists $sensorTypeConfig->{$sensorName}{"path"}) {
+            $obmcPath = $sensorTypeConfig->{$sensorName}->{"path"};
         }
+        else {
+            #removing the string "instance:" from path
+            $path =~ s/^instance:/\//;
+            $obmcPath = Util::getObmcName(\@inventory,$path);
+            print $obmcPath."\n";
+        }
+
+        # TODO via openbmc/openbmc#2144 - this fixup shouldn't be needed.
+        $obmcPath = occPathFixup($obmcPath);
 
         if (not defined $obmcPath) {
             close $fh;
@@ -112,12 +100,12 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
         print $fh $sensorID.":\n";
 
         my $serviceInterface =
-            $sensorTypeConfig->{$sensorType}->{"serviceInterface"};
-        my $readingType = $sensorTypeConfig->{$sensorType}->{"readingType"};
+            $sensorTypeConfig->{$sensorName}->{"serviceInterface"};
+        my $readingType = $sensorTypeConfig->{$sensorName}->{"readingType"};
 
-        printDebug("$sensorID : $sensorType : $sensorReadingType :$obmcPath \n");
+        printDebug("$sensorID : $sensorName : $sensorType : $sensorReadingType :$obmcPath \n");
 
-        writeToFile($sensorType,$sensorReadingType,$obmcPath,$serviceInterface,
+        writeToFile($sensorName,$sensorType,$sensorReadingType,$obmcPath,$serviceInterface,
             $readingType,$sensorTypeConfig,$fh);
 
     }
@@ -131,7 +119,7 @@ close $fh;
 
 sub writeToFile
 {
-    my ($sensorType,$sensorReadingType,$path,$serviceInterface,
+    my ($sensorName,$sensorType,$sensorReadingType,$path,$serviceInterface,
         $readingType,$sensorTypeConfig,$fh) = @_;
 
     print $fh "  sensorType: ".$sensorType."\n";
@@ -142,7 +130,7 @@ sub writeToFile
     print $fh "  readingType: ".$readingType."\n";
     print $fh "  interfaces:"."\n";
 
-    my $interfaces = $sensorTypeConfig->{$sensorType}->{"interfaces"};
+    my $interfaces = $sensorTypeConfig->{$sensorName}->{"interfaces"};
     #Walk over all the interfces as it needs to be written
     while (my ($interface,$properties) = each %{$interfaces}) {
         print $fh "    ".$interface.":\n";
@@ -159,6 +147,18 @@ sub writeToFile
             }
         }
     }
+}
+
+sub occPathFixup
+{
+    my ($path) = @_;
+    if ("/system/chassis/motherboard/cpu0/occ" eq $path) {
+        return "/org/open_power/control/occ0";
+    }
+    if ("/system/chassis/motherboard/cpu1/occ" eq $path) {
+        return "/org/open_power/control/occ1";
+    }
+    return $path;
 }
 
 # Usage
