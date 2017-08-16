@@ -36,9 +36,9 @@ my @inventory = Inventory::getInventory($targets);
 
 
 # paths
-my $i2cPath = "/sys/devices/platform/ahb/ahb:apb/1e78a000.i2c/i2c-<port>/i2c-<port>/<port>-00<address>";
-my $fsiMasterPath = "/sys/devices/platform/fsi-master/slave\@00:00";
-my $fsiSlavePath = "/sys/devices/hub\@00/slave\@<link>:00";
+my $i2cPath = "/sys/devices/platform/ahb/ahb:apb/ahb:apb:i2c\@1e78a000/1e78a100.i2c-bus/i2c-<port>/<port>-00<address>";
+my $fsiMasterPath = "/sys/devices/platform/gpio-fsi/fsi0/slave\@00:00/raw";
+my $fsiSlavePath = "/sys/devices/platform/gpio-fsi/fsi0/slave\@00:00/00:00:00:0a/fsi1/slave\@<link>:00/raw";
 
 
 open(my $fh, '>', $outFile) or die "Could not open file '$outFile' $!";
