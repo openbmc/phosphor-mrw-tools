@@ -146,6 +146,13 @@ sub writeToFile
             }
         }
     }
+    if (defined($sensorTypeConfig->{$sensorName}->{"skipupdate"})) {
+        my $overrides = $sensorTypeConfig->{$sensorName}->{"skipupdate"};
+        print $fh "  skipupdate:\n";
+        while (my ($offset,$condition) = each %{$overrides}) {
+            print $fh "      ".$offset.": ".$condition."\n";
+        }
+    }
 }
 
 # Convert MRW OCC inventory path to application d-bus path
