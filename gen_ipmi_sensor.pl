@@ -139,9 +139,19 @@ sub writeToFile
                     #other properties.
             print $fh "      ".$dbusProperty.":\n";
             while (my ( $offset,$values) = each %{$dbusPropertyValue}) {
-                print $fh "          $offset:\n";
-                while (my ( $key,$value) = each %{$values})  {
-                    print $fh "            $key: ". $value."\n";
+                if ($offset eq "prereq") {
+                    print $fh "          $offset:\n";
+                    while (my ( $preOffset,$preValues) = each %{$values}) {
+                        print $fh "            $preOffset:\n";
+                        while (my ( $key,$value) = each %{$preValues})  {
+                            print $fh "              $key: ". $value."\n";
+                        }
+                    }
+                } else {
+                    print $fh "          $offset:\n";
+                    while (my ( $key,$value) = each %{$values})  {
+                        print $fh "            $key: ". $value."\n";
+                    }
                 }
             }
         }
