@@ -10,17 +10,19 @@ my $force           = 0;
 my $serverwizFile  = "";
 my $debug           = 0;
 my $outputFile     = "";
+my $settingsFile   = "";
 
 # Command line argument parsing
 GetOptions(
 "f"   => \$force,            # numeric
 "i=s" => \$serverwizFile,    # string
 "o=s" => \$outputFile,       # string
+"s=s" => \$settingsFile,     # string
 "d"   => \$debug,
 )
 or printUsage();
 
-if (($serverwizFile eq "") or ($outputFile eq ""))
+if (($serverwizFile eq "") or ($outputFile eq "") or ($settingsFile eq "") )
 {
     printUsage();
 }
@@ -40,17 +42,45 @@ if($force == 1)
 $targetObj->loadXML($serverwizFile);
 print "Loaded MRW XML: $serverwizFile \n";
 
+open(my $inFh, '<', $settingsFile) or die "Could not open file '$settingsFile' $!";
+open(my $outFh, '>', $outputFile) or die "Could not open file '$outputFile' $!";
+
+# Process all the targets in the XML
+foreach my $target (sort keys %{$targetObj->getAllTargets()})
+{
+    # A future improvement could be to specify the MRW target.
+    next if ("SYS" ne $targetObj->getType($target, "TYPE"));
+    # Read the settings YAML replacing any MRW_<varible names> with their
+    # MRW value
+    while (my $row = <$inFh>)
+    {
+        my @settings;
+        push (@settings,$1) while($row =~ /MRW_(.*?)\W/g );
+        foreach my $setting (@settings)
+        {
+            my $settingValue = $targetObj->getAttribute($target, $setting);
+            $row =~ s/MRW_${setting}/$settingValue/g;
+        }
+        print $outFh $row;
+    }
+    last;
+    close $inFh;
+    close $outFh;
+}
+
 # Usage
 sub printUsage
 {
     print "
-    $0 -i [XML filename] -o [Output filename] [OPTIONS]
+    $0 -i [XML filename] -s [Settings YAML] -o [Output filename] [OPTIONS]
+
+Required:
+    -i = MRW XML filename
+    -s = The Setting YAML with MRW variables in MRW_<MRW variable name> format
+    -o = YAML output filename
 Options:
     -f = force output file creation even when errors
     -d = debug mode
-
-PS: mrw::Targets can be found in https://github.com/open-power/serverwiz/
-    mrw::Inventory can be found in https://github.com/openbmc/phosphor-mrw-tools/
     \n";
     exit(1);
 }
