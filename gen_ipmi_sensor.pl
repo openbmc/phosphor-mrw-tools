@@ -138,21 +138,14 @@ sub writeToFile
                     #will write property named "Property" first then
                     #other properties.
             print $fh "      ".$dbusProperty.":\n";
-            while (my ($offset,$values) = each %{$dbusPropertyValue}) {
-                if ($offset eq "prereq") {
-                    print $fh "          $offset:\n";
-                    while (my ($preOffset,$preValues) = each %{$values}) {
-                        print $fh "            $preOffset:\n";
-                        while (my ($key,$value) = each %{$preValues})  {
-                            print $fh "              $key: ". $value."\n";
-                        }
-                    }
-                } else {
-                    print $fh "          $offset:\n";
-                    while (my ($key,$value) = each %{$values})  {
-                        print $fh "            $key: ". $value."\n";
-                    }
+            while (my ($condition,$offsets) = each %{$dbusPropertyValue}) {
+                print $fh "          $condition:\n";
+            while (my ($offset,$values) = each %{$offsets}) {
+                print $fh "            $offset:\n";
+                while (my ($key,$value) = each %{$values})  {
+                    print $fh "              $key: ". $value."\n";
                 }
+            }
             }
         }
     }
