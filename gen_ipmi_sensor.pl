@@ -41,6 +41,7 @@ my $sensorTypeConfig = LoadFile($metaDataFile);
 
 my @interestedTypes = keys %{$sensorTypeConfig};
 my %types;
+my %entityDict;
 
 @types{@interestedTypes} = ();
 
@@ -54,12 +55,26 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
     my $path = '';
     my $obmcPath = '';
     my $sensorName = '';
+    my $entityID = '';
+    my $entityInstance = '';
 
     if ($targetObj->getTargetType($target) eq "unit-ipmi-sensor") {
 
         $sensorName = $targetObj->getInstanceName($target);
         #not interested in this sensortype
         next if (not exists $types{$sensorName});
+
+        $entityID = $targetObj->getAttribute($target, "IPMI_ENTITY_ID");
+        if (exists ($entityDict{$entityID}))
+        {
+            $entityDict{$entityID}++;
+            $entityInstance = $entityDict{$entityID};
+        }
+        else
+        {
+            $entityDict{$entityID} = '1';
+            $entityInstance = $entityDict{$entityID};
+        }
 
         $sensorID = $targetObj->getAttribute($target, "IPMI_SENSOR_ID");
 
@@ -101,11 +116,12 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
         my $serviceInterface =
             $sensorTypeConfig->{$sensorName}->{"serviceInterface"};
         my $readingType = $sensorTypeConfig->{$sensorName}->{"readingType"};
+        my $sensorNamePattern = $sensorTypeConfig->{$sensorName}->{"sensorNamePattern"};
 
-        printDebug("$sensorID : $sensorName : $sensorType : $sensorReadingType :$obmcPath \n");
+        printDebug("$sensorID : $sensorName : $sensorType : $sensorReadingType : $entityID : $entityInstance : $obmcPath \n");
 
         writeToFile($sensorName,$sensorType,$sensorReadingType,$obmcPath,$serviceInterface,
-            $readingType,$sensorTypeConfig,$fh);
+            $readingType,$sensorTypeConfig,$entityID,$entityInstance,$sensorNamePattern,$fh);
 
     }
 
@@ -119,14 +135,18 @@ close $fh;
 sub writeToFile
 {
     my ($sensorName,$sensorType,$sensorReadingType,$path,$serviceInterface,
-        $readingType,$sensorTypeConfig,$fh) = @_;
+        $readingType,$sensorTypeConfig,$entityID,$entityInstance,
+        $sensorNamePattern,$fh) = @_;
 
+    print $fh "  entityID: ".$entityID."\n";
+    print $fh "  entityInstance: ".$entityInstance."\n";
     print $fh "  sensorType: ".$sensorType."\n";
     print $fh "  path: ".$path."\n";
 
     print $fh "  sensorReadingType: ".$sensorReadingType."\n";
     print $fh "  serviceInterface: ".$serviceInterface."\n";
     print $fh "  readingType: ".$readingType."\n";
+    print $fh "  sensorNamePattern: ".$sensorNamePattern."\n";
     print $fh "  interfaces:"."\n";
 
     my $interfaces = $sensorTypeConfig->{$sensorName}->{"interfaces"};
