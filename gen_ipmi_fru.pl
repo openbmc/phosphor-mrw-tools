@@ -42,6 +42,8 @@ my @interestedTypes = keys %{$fruTypeConfig};
 my %types;
 @types{@interestedTypes} = ();
 
+my %entityInfoDict;
+
 my @allAssoTypes = getAllAssociatedTypes($fruTypeConfig);
 my %allAssoTypesHash;
 @allAssoTypesHash{@allAssoTypes} = ();
@@ -49,6 +51,8 @@ my %allAssoTypesHash;
 my @inventory = Inventory::getInventory($targetObj);
 for my $item (@inventory) {
     my $isFru = 0, my $fruID = 0, my $fruType = "";
+    my $entityInstance = 1, my $entityID = 0;
+
     #Fetch the FRUID.
     if (!$targetObj->isBadAttribute($item->{TARGET}, "FRU_ID")) {
         $fruID = $targetObj->getAttribute($item->{TARGET}, "FRU_ID");
@@ -70,6 +74,16 @@ for my $item (@inventory) {
 
     print $fh $fruID.":";
     print $fh "\n";
+
+    $entityID = $fruTypeConfig->{$fruType}->{'EntityID'};
+
+    if (exists $entityInfoDict{$entityID}) {
+        $entityInstance = $entityInfoDict{$entityID} + 1;
+    }
+
+    printDebug("entityID => $entityID , entityInstance => $entityInstance");
+
+    $entityInfoDict{$entityID} = $entityInstance;
 
     writeToFile($fruType,$item->{OBMC_NAME},$fruTypeConfig,$fh);
 
@@ -121,21 +135,31 @@ sub writeToFile
     my $fruTypeConfig = $_[2];#loaded config file (frutypes)
     my $fh = $_[3];#file Handle
     #walk over all the fru types and match for the incoming type
+
     print $fh "  ".$instancePath.":";
     print $fh "\n";
+    print $fh "    "."entityID: ".$fruTypeConfig->{$fruType}->{'EntityID'};
+    print $fh "\n";
+    print $fh "    "."entityInstance: ";
+    print $fh $entityInfoDict{$fruTypeConfig->{$fruType}->{'EntityID'}};
+    print $fh "\n";
+    print $fh "    "."interfaces:";
+    print $fh "\n";
+
     my $interfaces = $fruTypeConfig->{$fruType}->{'Interfaces'};
+
     #Walk over all the interfaces as it needs to be written
     while ( my ($interface,$properties) = each %{$interfaces}) {
-        print $fh "    ".$interface.":";
+        print $fh "      ".$interface.":";
         print $fh "\n";
         #walk over all the properties as it needs to be written
         while ( my ($dbusProperty,$metadata) = each %{$properties}) {
                     #will write property named "Property" first then
                     #other properties.
-            print $fh "      ".$dbusProperty.":";
+            print $fh "        ".$dbusProperty.":";
             print $fh "\n";
             for my $key (sort keys %{$metadata}) {
-                print $fh "        $key: "."$metadata->{$key}";
+                print $fh "          $key: "."$metadata->{$key}";
                 print $fh "\n";
             }
         }
