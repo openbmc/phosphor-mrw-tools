@@ -141,12 +141,8 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
             $priority = "'On'";
         }
 
-        # Need this to populate the table incase the device is empty
-        my $instance = $targetObj->getInstanceName($ledTarget);
-
-        # All the fan instances have fan-fault-led and need to extract the
-        # real name. If not, then what's in the instance holds good
-        my $name = ($device eq '') ? $instance : $device;
+        #The MRW instance name must match the LED name in the device tree
+        my $name = $targetObj->getInstanceName($ledTarget);
 
         # Get if this LED is a ENC-FAULT type.
         if(!$targetObj->isBadAttribute($target, "LED_TYPE"))
