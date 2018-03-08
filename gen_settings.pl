@@ -84,11 +84,51 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
             my $settingValue = $targetObj->getAttribute($target, $setting);
             $row =~ s/MRW_${setting}/$settingValue/g;
         }
+
+        #If there are [[ ]] expressions, evaluate them and replace the
+        #[[expression]] with the value
+        while ($row =~ /\[\[(.*?)\]\]/)
+        {
+            my $expr = $1;
+            my $value = evaluate($expr);
+
+            #Break the row apart, remove the [[ ]]s, and put the
+            #value in the middle when putting back together.
+            my $exprStart = index($row, $expr);
+            my $front = substr($row, 0, $exprStart - 2);
+            my $back = substr($row, $exprStart + length($expr) + 2);
+
+            $row = $front . $value . $back;
+        }
+
         print $outFh $row;
     }
     last;
     close $inFh;
     close $outFh;
+}
+
+#Evaluate the expression passed in.  Substitute any variables with
+#their values passed in on the command line.
+sub evaluate
+{
+    my $expr = shift;
+
+    #Put in the value for the variable.
+    for my $var (keys %exprVars)
+    {
+        $expr =~ s/$var/$exprVars{$var}/;
+    }
+
+    my $value = eval($expr);
+    if (not defined $value)
+    {
+        die "Invalid expression found: $expr\n";
+    }
+
+    #round it to an integer
+    $value = sprintf("%.0f", $value);
+    return $value;
 }
 
 #Parse the variable=value string passed in from the
