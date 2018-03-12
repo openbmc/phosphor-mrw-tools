@@ -43,6 +43,7 @@ my @interestedTypes = keys %{$sensorTypeConfig};
 my %types;
 my %entityDict;
 
+my $maxCorePerProc = 24;
 @types{@interestedTypes} = ();
 
 my @inventory = Inventory::getInventory($targetObj);
@@ -117,41 +118,83 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
         my $readingType = $sensorTypeConfig->{$sensorName}->{"readingType"};
         my $sensorNamePattern = $sensorTypeConfig->{$sensorName}->{"sensorNamePattern"};
 
-        my $debug = "$sensorID : $sensorName : $sensorType : ";
-        $debug .= "$sensorReadingType : $entityID : $entityInstance : ";
-        $debug .= "$obmcPath \n";
-        printDebug("$debug");
+        # If temerature sensor
+        if($sensorType == 0x01) {
+            my $dbusPath .= "/xyz/openbmc_project/sensors/temperature/";
+            if($sensorName eq "cpucore_temp_sensor") {
+                my $core = $targetObj->getTargetParent($target);
+                my $coreNo = $targetObj->getAttribute($core, "IPMI_INSTANCE");
+                my $proc = Util::getEnclosingFru($targetObj, $core);
+                my $procNo = $targetObj->getAttribute($proc, "POSITION");
+                $coreNo = $coreNo - ($procNo * $maxCorePerProc);
+                $dbusPath .= "p" . $procNo . "_core" . $coreNo . "_temp";
+            }
+            elsif ($sensorName eq "dimm_temp_sensor") {
+                my $dimm = $targetObj->getTargetParent($target);
+                my $dimmconn = $targetObj->getTargetParent($dimm);
+                my $pos = $targetObj->getAttribute($dimmconn, "POSITION");
+                $dbusPath .= "dimm" . $pos . "_temp";
+            }
+            elsif ($sensorName eq "vrm_vdd_temp_sensor") {
+                my $proc = Util::getEnclosingFru($targetObj, $target);
+                my $procNo = $targetObj->getAttribute($proc, "POSITION");
+                $dbusPath .= "p" . $procNo . "_vdd_temp";
+            }
+            elsif ($sensorName eq "memory_temp_sensor") {
+                my $gvcard = $targetObj->getTargetParent($target);
+                my $pos = $targetObj->getAttribute($gvcard, "IPMI_INSTANCE");
+                $dbusPath .= "gpu" . $pos . "_mem_temp";
+            }
+            elsif ($sensorName eq "gpu_temp_sensor") {
+                my $gvcard = $targetObj->getTargetParent($target);
+                my $pos = $targetObj->getAttribute($gvcard, "IPMI_INSTANCE");
+                $dbusPath .= "gpu" . $pos . "_core_temp";
+            }
+            else {
+                close $fh;
+                die("Unsupported temperature sensor $sensorName \n");
+            }
+            
+            my $multiplierM = $sensorTypeConfig->{$sensorName}->{"multiplierM"};
+            my $offsetB = $sensorTypeConfig->{$sensorName}->{"offsetB"};
+            my $bExp = $sensorTypeConfig->{$sensorName}->{"bExp"};
+            my $rExp = $sensorTypeConfig->{$sensorName}->{"rExp"};
+            my $unit = $sensorTypeConfig->{$sensorName}->{"unit"};
+            my $scale = $sensorTypeConfig->{$sensorName}->{"scale"};
 
-        writeToFile($sensorName,$sensorType,$sensorReadingType,$obmcPath,$serviceInterface,
-            $readingType,$sensorTypeConfig,$entityID,$entityInstance,$sensorNamePattern,$fh);
+            # print debug info if enabled
+            my $debug = "$sensorID : $sensorName : $sensorType : ";
+            $debug .= "$sensorReadingType : $entityID : $entityInstance : ";
+            $debug .= "$multiplierM : $offsetB : $bExp : $rExp : $unit";
+            $debug .= "$scale : $dbusPath : $obmcPath \n";
 
+            # write  temperatur sensor data to file
+            writeTempSensorToFile($sensorName, $sensorType,
+                $sensorReadingType, $dbusPath, $serviceInterface, $readingType,
+                $multiplierM, $offsetB, $bExp, $rExp, $unit, $scale,
+                $sensorTypeConfig, $entityID, $entityInstance,
+                $sensorNamePattern, $fh);
+            #print "\nAnalog SENSOR NAME = $sensorName ";
+            #print "dbusPath=$dbusPath obmcPath=$obmcPath \n";
+        }
+        else {
+            my $debug = "$sensorID : $sensorName : $sensorType : ";
+            $debug .= "$sensorReadingType : $entityID : $entityInstance : ";
+            $debug .= "$obmcPath \n";
+            printDebug("$debug");
+            writeToFile($sensorName, $sensorType, $sensorReadingType, $obmcPath,
+                $serviceInterface, $readingType, $sensorTypeConfig, $entityID,
+                $entityInstance, $sensorNamePattern, $fh);
+        }
     }
 
 }
 close $fh;
 
 
-#Get the metadata for the incoming sensortype from the loaded config file.
-#Write the sensor data into the output file
-
-sub writeToFile
+sub writeInterfaces
 {
-    my ($sensorName,$sensorType,$sensorReadingType,$path,$serviceInterface,
-        $readingType,$sensorTypeConfig,$entityID,$entityInstance,
-        $sensorNamePattern,$fh) = @_;
-
-    print $fh "  entityID: ".$entityID."\n";
-    print $fh "  entityInstance: ".$entityInstance."\n";
-    print $fh "  sensorType: ".$sensorType."\n";
-    print $fh "  path: ".$path."\n";
-
-    print $fh "  sensorReadingType: ".$sensorReadingType."\n";
-    print $fh "  serviceInterface: ".$serviceInterface."\n";
-    print $fh "  readingType: ".$readingType."\n";
-    print $fh "  sensorNamePattern: ".$sensorNamePattern."\n";
-    print $fh "  interfaces:"."\n";
-
-    my $interfaces = $sensorTypeConfig->{$sensorName}->{"interfaces"};
+    my ($interfaces, $fh) = @_;
     #Walk over all the interfces as it needs to be written
     while (my ($interface,$properties) = each %{$interfaces}) {
         print $fh "    ".$interface.":\n";
@@ -171,6 +214,56 @@ sub writeToFile
             }
         }
     }
+}
+
+#Get the metadata for the incoming sensortype from the loaded config file.
+#Write the sensor data into the output file
+sub writeToFile
+{
+    my ($sensorName,$sensorType,$sensorReadingType,$path,$serviceInterface,
+        $readingType,$sensorTypeConfig,$entityID,$entityInstance,
+        $sensorNamePattern,$fh) = @_;
+
+    print $fh "  entityID: ".$entityID."\n";
+    print $fh "  entityInstance: ".$entityInstance."\n";
+    print $fh "  sensorType: ".$sensorType."\n";
+    print $fh "  path: ".$path."\n";
+
+    print $fh "  sensorReadingType: ".$sensorReadingType."\n";
+    print $fh "  serviceInterface: ".$serviceInterface."\n";
+    print $fh "  readingType: ".$readingType."\n";
+    print $fh "  sensorNamePattern: ".$sensorNamePattern."\n";
+    print $fh "  interfaces:"."\n";
+
+    my $interfaces = $sensorTypeConfig->{$sensorName}->{"interfaces"};
+    writeInterfaces($interfaces, $fh);
+}
+
+sub writeTempSensorToFile
+{
+    my ($sensorName, $sensorType, $sensorReadingType, $path, $serviceInterface,
+        $readingType, $multiplierM, $offsetB, $bExp, $rExp,
+        $unit, $scale, $sensorTypeConfig, $entityID, $entityInstance,
+        $sensorNamePattern, $fh) = @_;
+
+    print $fh "  entityID: ".$entityID."\n";
+    print $fh "  entityInstance: ".$entityInstance."\n";
+    print $fh "  sensorType: ".$sensorType."\n";
+    print $fh "  path: ".$path."\n";
+    print $fh "  sensorReadingType: ".$sensorReadingType."\n";
+    print $fh "  serviceInterface: ".$serviceInterface."\n";
+    print $fh "  readingType: ".$readingType."\n";
+    print $fh "  multiplierM: ".$multiplierM."\n";
+    print $fh "  offsetB: ".$offsetB."\n";
+    print $fh "  bExp: ".$bExp."\n";
+    print $fh "  rExp: ".$rExp."\n";
+    print $fh "  unit: ".$unit."\n";
+    print $fh "  scale: ".$scale."\n";
+    print $fh "  sensorNamePattern: ".$sensorNamePattern."\n";
+    print $fh "  interfaces:"."\n";
+
+    my $interfaces = $sensorTypeConfig->{$sensorName}->{"interfaces"};
+    writeInterfaces($interfaces, $fh);
 }
 
 # Convert MRW OCC inventory path to application d-bus path
