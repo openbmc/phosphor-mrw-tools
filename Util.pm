@@ -43,6 +43,24 @@ sub getChildUnitsWithTargetType
     return @units;
 }
 
+#Returns size of child units based on their Type.
+# param[in] $targetObj = The Targets object
+# param[in] $type = The type of the units to find
+# param[in] $chip = The chip target to find the units on
+sub getSizeOfChildUnitsWithType
+{
+    my ($targetObj, $type, $chip) = @_;
+    my @units;
+    my @children = $targetObj->getAllTargetChildren($chip);
+    for my $child (@children) {
+        if ($targetObj->getType($child) eq $type) {
+            push @units, $child;
+        }
+    }
+    my $size = @units;
+    return $size;
+}
+
 # Returns OBMC name corresponding to a Target name
 # param[in] \@inventory = reference to array of inventory items
 # param[in] $targetName = A Target name
@@ -153,6 +171,11 @@ it will die.  Currently supports single BMC systems.
 =item getChildUnitsWithTargetType(C<TargetsObj>, C<TargetType>, C<ChipTarget>)
 
 Returns an array of targets that have target-type C<TargetType>
+and are children (any level) of target C<ChipTarget>.
+
+=item getSizeOfChildUnitsWithType(C<TargetsObj>, C<Type>, C<ChipTarget>)
+
+Returns size of targets that have Type C<Type>
 and are children (any level) of target C<ChipTarget>.
 
 =item getObmcName(C<InventoryItems>, C<TargetName>)
