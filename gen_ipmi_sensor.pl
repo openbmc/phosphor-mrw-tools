@@ -114,20 +114,91 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
         my $serviceInterface =
             $sensorTypeConfig->{$sensorName}->{"serviceInterface"};
         my $readingType = $sensorTypeConfig->{$sensorName}->{"readingType"};
-        my $sensorNamePattern = $sensorTypeConfig->{$sensorName}->{"sensorNamePattern"};
+        my $sensorNamePattern =
+                $sensorTypeConfig->{$sensorName}->{"sensorNamePattern"};
 
-        my $debug = "$sensorID : $sensorName : $sensorType : ";
-        $debug .= "$sensorReadingType : $entityID : $entityInstance : ";
-        $debug .= "$obmcPath \n";
-        printDebug("$debug");
+        # temperature sensor
+        if($sensorType == 0x01) {
+            my $dbusPath = temperatureSensorPathFixup($sensorName, $target,
+                            $obmcPath);
+            if (not defined $obmcPath) {
+                warn("Unsupported sensor $sensorName, Ignoring\n");
+                next;
+            }
+            my $multiplierM = $sensorTypeConfig->{$sensorName}->{"multiplierM"};
+            my $offsetB = $sensorTypeConfig->{$sensorName}->{"offsetB"};
+            my $bExp = $sensorTypeConfig->{$sensorName}->{"bExp"};
+            my $rExp = $sensorTypeConfig->{$sensorName}->{"rExp"};
+            my $unit = $sensorTypeConfig->{$sensorName}->{"unit"};
+            my $scale = $sensorTypeConfig->{$sensorName}->{"scale"};
 
-        writeToFile($sensorName,$sensorType,$sensorReadingType,$obmcPath,$serviceInterface,
-            $readingType,$sensorTypeConfig,$entityID,$entityInstance,$sensorNamePattern,$fh);
+            # print debug info if enabled
+            my $debug = "$sensorID : $sensorName : $sensorType : ";
+            $debug .= "$sensorReadingType : $entityID : $entityInstance : ";
+            $debug .= "$multiplierM : $offsetB : $bExp : $rExp : $unit";
+            $debug .= "$scale : $dbusPath : $obmcPath \n";
+            printDebug("$debug");
 
+            # write  temperatur sensor data to file
+            writeTempSensorToFile($sensorName, $sensorType, $sensorReadingType,
+                $dbusPath, $serviceInterface, $readingType, $multiplierM,
+                $offsetB, $bExp, $rExp, $unit, $scale, $sensorTypeConfig,
+                $entityID, $entityInstance, $sensorNamePattern, $fh);
+        }
+        else {
+            my $debug = "$sensorID : $sensorName : $sensorType : ";
+            $debug .= "$sensorReadingType : $entityID : $entityInstance : ";
+            $debug .= "$obmcPath \n";
+            printDebug("$debug");
+            writeToFile($sensorName, $sensorType, $sensorReadingType, $obmcPath,
+                $serviceInterface, $readingType, $sensorTypeConfig, $entityID,
+                $entityInstance, $sensorNamePattern, $fh);
+        }
     }
-
 }
 close $fh;
+
+# Construct DBus object path for temperature sensors
+sub temperatureSensorPathFixup
+{
+    my ($sensorName, $target, $path) = @_;
+    $path = "/xyz/openbmc_project/sensors/temperature/";
+    if($sensorName eq "cpucore_temp_sensor") {
+        my $core = $targetObj->getTargetParent($target);
+        my $coreNo = $targetObj->getAttribute($core, "IPMI_INSTANCE");
+        my $proc = Util::getEnclosingFru($targetObj, $core);
+        my $procNo = $targetObj->getAttribute($proc, "POSITION");
+        my $size = Util::getSizeOfChildUnitsWithTargetType(
+                        $targetObj, "unit-core-power9", $proc );
+        $coreNo = $coreNo - ($procNo * $size);
+        $path .= "p" . $procNo . "_core" . $coreNo . "_temp";
+    }
+    elsif ($sensorName eq "dimm_temp_sensor") {
+        my $dimm = $targetObj->getTargetParent($target);
+        my $dimmconn = $targetObj->getTargetParent($dimm);
+        my $pos = $targetObj->getAttribute($dimmconn, "POSITION");
+        $path .= "dimm" . $pos . "_temp";
+    }
+    elsif ($sensorName eq "vrm_vdd_temp_sensor") {
+        my $proc = Util::getEnclosingFru($targetObj, $target);
+        my $procNo = $targetObj->getAttribute($proc, "POSITION");
+        $path .= "p" . $procNo . "_vdd_temp";
+    }
+    elsif ($sensorName eq "memory_temp_sensor") {
+        my $gvcard = $targetObj->getTargetParent($target);
+        my $pos = $targetObj->getAttribute($gvcard, "IPMI_INSTANCE");
+        $path .= "gpu" . $pos . "_mem_temp";
+    }
+    elsif ($sensorName eq "gpu_temp_sensor") {
+        my $gvcard = $targetObj->getTargetParent($target);
+        my $pos = $targetObj->getAttribute($gvcard, "IPMI_INSTANCE");
+        $path .= "gpu" . $pos . "_core_temp";
+    }
+    else {
+        return undef;
+    }
+    return $path;
+}
 
 #Write the interfaces data into the output file
 sub writeInterfaces
@@ -177,7 +248,36 @@ sub writeToFile
     writeInterfaces($interfaces, $fh);
 }
 
-#Convert MRW OCC inventory path to application d-bus path
+#Get the metadata for the incoming sensortype from the loaded config file.
+#Write the temperature sensor data into the output file
+sub writeTempSensorToFile
+{
+    my ($sensorName, $sensorType, $sensorReadingType, $path, $serviceInterface,
+        $readingType, $multiplierM, $offsetB, $bExp, $rExp,
+        $unit, $scale, $sensorTypeConfig, $entityID, $entityInstance,
+        $sensorNamePattern, $fh) = @_;
+
+    print $fh "  entityID: ".$entityID."\n";
+    print $fh "  entityInstance: ".$entityInstance."\n";
+    print $fh "  sensorType: ".$sensorType."\n";
+    print $fh "  path: ".$path."\n";
+    print $fh "  sensorReadingType: ".$sensorReadingType."\n";
+    print $fh "  serviceInterface: ".$serviceInterface."\n";
+    print $fh "  readingType: ".$readingType."\n";
+    print $fh "  multiplierM: ".$multiplierM."\n";
+    print $fh "  offsetB: ".$offsetB."\n";
+    print $fh "  bExp: ".$bExp."\n";
+    print $fh "  rExp: ".$rExp."\n";
+    print $fh "  unit: ".$unit."\n";
+    print $fh "  scale: ".$scale."\n";
+    print $fh "  sensorNamePattern: ".$sensorNamePattern."\n";
+    print $fh "  interfaces:"."\n";
+
+    my $interfaces = $sensorTypeConfig->{$sensorName}->{"interfaces"};
+    writeInterfaces($interfaces, $fh);
+}
+
+# Convert MRW OCC inventory path to application d-bus path
 sub checkOccPathFixup
 {
     my ($path) = @_;

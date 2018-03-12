@@ -43,6 +43,16 @@ sub getChildUnitsWithTargetType
     return @units;
 }
 
+#Returns size of child units based on their Target Type.
+# param[in] $targetObj = The Targets object
+# param[in] $unitTargetType = The target type of the units to find
+# param[in] $chip = The chip target to find the units on
+sub getSizeOfChildUnitsWithTargetType
+{
+    my ($targetObj, $unitTargetType, $chip) = @_;
+    my $size = getChildUnitsWithTargetType($targetObj, $unitTargetType, $chip);
+    return $size;
+}
 # Returns OBMC name corresponding to a Target name
 # param[in] \@inventory = reference to array of inventory items
 # param[in] $targetName = A Target name
