@@ -116,15 +116,29 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
             $sensorTypeConfig->{$sensorName}->{"serviceInterface"};
         my $readingType = $sensorTypeConfig->{$sensorName}->{"readingType"};
         my $sensorNamePattern = $sensorTypeConfig->{$sensorName}->{"sensorNamePattern"};
-
+        my $analogSensor = $sensorTypeConfig->{$sensorName}->{"analogSensor"};
         my $debug = "$sensorID : $sensorName : $sensorType : ";
         $debug .= "$sensorReadingType : $entityID : $entityInstance : ";
         $debug .= "$obmcPath \n";
         printDebug("$debug");
-
-        writeToFile($sensorName,$sensorType,$sensorReadingType,$obmcPath,$serviceInterface,
-            $readingType,$sensorTypeConfig,$entityID,$entityInstance,$sensorNamePattern,$fh);
-
+        if($analogSensor eq "true") {
+            my $multiplierM = $sensorTypeConfig->{$sensorName}->{"multiplierM"};
+            my $offsetB = $sensorTypeConfig->{$sensorName}->{"offsetB"};
+            my $bExp = $sensorTypeConfig->{$sensorName}->{"bExp"};
+            my $rExp = $sensorTypeConfig->{$sensorName}->{"rExp"};
+            my $unit = $sensorTypeConfig->{$sensorName}->{"unit"};
+            my $scale = $sensorTypeConfig->{$sensorName}->{"scale"};
+            writeAnalogSensorToFile($sensorName, $sensorType,
+                $sensorReadingType, $obmcPath, $serviceInterface, $readingType,
+                $multiplierM, $offsetB, $bExp, $rExp, $unit, $scale,
+                $sensorTypeConfig, $entityID, $entityInstance,
+                $sensorNamePattern, $fh);
+        }
+        else {
+            writeToFile($sensorName, $sensorType, $sensorReadingType, $obmcPath,
+                $serviceInterface, $readingType, $sensorTypeConfig, $entityID, 
+                $entityInstance, $sensorNamePattern, $fh);
+        }
     }
 
 }
@@ -173,6 +187,50 @@ sub writeToFile
     }
 }
 
+sub writeAnalogSensorToFile
+{
+    my ($sensorName, $sensorType, $sensorReadingType, $path, $serviceInterface,
+        $readingType, $multiplierM, $offsetB, $bExp, $rExp,
+        $unit, $scale, $sensorTypeConfig, $entityID, $entityInstance,
+        $sensorNamePattern, $fh) = @_;
+
+    print $fh "  entityID: ".$entityID."\n";
+    print $fh "  entityInstance: ".$entityInstance."\n";
+    print $fh "  sensorType: ".$sensorType."\n";
+    print $fh "  path: ".$path."\n";
+    print $fh "  sensorReadingType: ".$sensorReadingType."\n";
+    print $fh "  serviceInterface: ".$serviceInterface."\n";
+    print $fh "  readingType: ".$readingType."\n";
+    print $fh "  multiplierM: ".$multiplierM."\n";
+    print $fh "  offsetB: ".$offsetB."\n";
+    print $fh "  bExp: ".$bExp."\n";
+    print $fh "  rExp: ".$rExp."\n";
+    print $fh "  unit: ".$unit."\n";
+    print $fh "  scale: ".$scale."\n";
+    print $fh "  sensorNamePattern: ".$sensorNamePattern."\n";
+    print $fh "  interfaces:"."\n";
+
+    my $interfaces = $sensorTypeConfig->{$sensorName}->{"interfaces"};
+    #Walk over all the interfces as it needs to be written
+    while (my ($interface,$properties) = each %{$interfaces}) {
+        print $fh "    ".$interface.":\n";
+        #walk over all the properties as it needs to be written
+        while (my ($dbusProperty,$dbusPropertyValue) = each %{$properties}) {
+                    #will write property named "Property" first then
+                    #other properties.
+            print $fh "      ".$dbusProperty.":\n";
+            while (my ($condition,$offsets) = each %{$dbusPropertyValue}) {
+                print $fh "          $condition:\n";
+                while (my ($offset,$values) = each %{$offsets}) {
+                    print $fh "            $offset:\n";
+                    while (my ($key,$value) = each %{$values})  {
+                        print $fh "              $key: ". $value."\n";
+                    }
+                }
+            }
+        }
+    }
+}
 # Convert MRW OCC inventory path to application d-bus path
 sub checkOccPathFixup
 {
