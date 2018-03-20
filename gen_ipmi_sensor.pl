@@ -1,7 +1,6 @@
 #! /usr/bin/perl
 use strict;
 use warnings;
-
 use mrw::Targets;
 use mrw::Inventory;
 use mrw::Util;
@@ -130,28 +129,11 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
 }
 close $fh;
 
-
-#Get the metadata for the incoming sensortype from the loaded config file.
-#Write the sensor data into the output file
-
-sub writeToFile
+#Write the interfaces data into the output file
+sub writeInterfaces
 {
-    my ($sensorName,$sensorType,$sensorReadingType,$path,$serviceInterface,
-        $readingType,$sensorTypeConfig,$entityID,$entityInstance,
-        $sensorNamePattern,$fh) = @_;
-
-    print $fh "  entityID: ".$entityID."\n";
-    print $fh "  entityInstance: ".$entityInstance."\n";
-    print $fh "  sensorType: ".$sensorType."\n";
-    print $fh "  path: ".$path."\n";
-
-    print $fh "  sensorReadingType: ".$sensorReadingType."\n";
-    print $fh "  serviceInterface: ".$serviceInterface."\n";
-    print $fh "  readingType: ".$readingType."\n";
-    print $fh "  sensorNamePattern: ".$sensorNamePattern."\n";
+    my ($interfaces, $fh) = @_;
     print $fh "  interfaces:"."\n";
-
-    my $interfaces = $sensorTypeConfig->{$sensorName}->{"interfaces"};
     #Walk over all the interfces as it needs to be written
     while (my ($interface,$properties) = each %{$interfaces}) {
         print $fh "    ".$interface.":\n";
@@ -173,7 +155,29 @@ sub writeToFile
     }
 }
 
-# Convert MRW OCC inventory path to application d-bus path
+#Get the metadata for the incoming sensortype from the loaded config file.
+#Write the sensor data into the output file
+sub writeToFile
+{
+    my ($sensorName,$sensorType,$sensorReadingType,$path,$serviceInterface,
+        $readingType,$sensorTypeConfig,$entityID,$entityInstance,
+        $sensorNamePattern,$fh) = @_;
+
+    print $fh "  entityID: ".$entityID."\n";
+    print $fh "  entityInstance: ".$entityInstance."\n";
+    print $fh "  sensorType: ".$sensorType."\n";
+    print $fh "  path: ".$path."\n";
+
+    print $fh "  sensorReadingType: ".$sensorReadingType."\n";
+    print $fh "  serviceInterface: ".$serviceInterface."\n";
+    print $fh "  readingType: ".$readingType."\n";
+    print $fh "  sensorNamePattern: ".$sensorNamePattern."\n";
+
+    my $interfaces = $sensorTypeConfig->{$sensorName}->{"interfaces"};
+    writeInterfaces($interfaces, $fh);
+}
+
+#Convert MRW OCC inventory path to application d-bus path
 sub checkOccPathFixup
 {
     my ($path) = @_;
