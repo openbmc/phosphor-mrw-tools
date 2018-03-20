@@ -132,6 +132,12 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
             my $unit = $sensorTypeConfig->{$sensorName}->{"unit"};
             my $scale = $sensorTypeConfig->{$sensorName}->{"scale"};
 
+            # TODO: openbmc/openbmc#3026
+            # Fix IPMI_SENSOR_READING_TYPE for vrm_vdd_temp_sensor
+            if ($sensorName eq "vrm_vdd_temp_sensor") {
+                $sensorReadingType = 1;
+            }
+
             # print debug info if enabled
             my $debug = "$sensorID : $sensorName : $sensorType : ";
             $debug .= "$sensorReadingType : $entityID : $entityInstance : ";
