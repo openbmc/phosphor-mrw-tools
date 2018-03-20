@@ -145,6 +145,11 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
             my $rExp = $sensorTypeConfig->{$sensorName}->{"rExp"};
             my $unit = $sensorTypeConfig->{$sensorName}->{"unit"};
             my $scale = $sensorTypeConfig->{$sensorName}->{"scale"};
+            # TODO: openbmc/openbmc#3026
+            # Fix IPMI_SENSOR_READING_TYPE for vrm_vdd_temp_sensor
+            if ($sensorName eq "vrm_vdd_temp_sensor") {
+                $sensorReadingType = 1;
+            }
             $data{'MULTIPLIER_M'} = $multiplierM;
             $data{'OFFSET_B'} = $offsetB;
             $data{'B_EXP'} = $bExp;
