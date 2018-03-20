@@ -1,7 +1,6 @@
 #! /usr/bin/perl
 use strict;
 use warnings;
-
 use mrw::Targets;
 use mrw::Inventory;
 use mrw::Util;
@@ -130,10 +129,34 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
 }
 close $fh;
 
+#Write the interfaces data into the output file
+sub writeInterfaces
+{
+    my ($interfaces, $fh) = @_;
+    print $fh "  interfaces:"."\n";
+    #Walk over all the interfces as it needs to be written
+    while (my ($interface,$properties) = each %{$interfaces}) {
+        print $fh "    ".$interface.":\n";
+        #walk over all the properties as it needs to be written
+        while (my ($dbusProperty,$dbusPropertyValue) = each %{$properties}) {
+            #will write property named "Property" first then
+            #other properties.
+            print $fh "      ".$dbusProperty.":\n";
+            while (my ($condition,$offsets) = each %{$dbusPropertyValue}) {
+                print $fh "          $condition:\n";
+                while (my ($offset,$values) = each %{$offsets}) {
+                    print $fh "            $offset:\n";
+                    while (my ($key,$value) = each %{$values})  {
+                        print $fh "              $key: ". $value."\n";
+                    }
+                }
+            }
+        }
+    }
+}
 
 #Get the metadata for the incoming sensortype from the loaded config file.
 #Write the sensor data into the output file
-
 sub writeToFile
 {
     my ($sensorName,$sensorType,$sensorReadingType,$path,$serviceInterface,
@@ -149,31 +172,12 @@ sub writeToFile
     print $fh "  serviceInterface: ".$serviceInterface."\n";
     print $fh "  readingType: ".$readingType."\n";
     print $fh "  sensorNamePattern: ".$sensorNamePattern."\n";
-    print $fh "  interfaces:"."\n";
 
     my $interfaces = $sensorTypeConfig->{$sensorName}->{"interfaces"};
-    #Walk over all the interfces as it needs to be written
-    while (my ($interface,$properties) = each %{$interfaces}) {
-        print $fh "    ".$interface.":\n";
-        #walk over all the properties as it needs to be written
-        while (my ($dbusProperty,$dbusPropertyValue) = each %{$properties}) {
-                    #will write property named "Property" first then
-                    #other properties.
-            print $fh "      ".$dbusProperty.":\n";
-            while (my ($condition,$offsets) = each %{$dbusPropertyValue}) {
-                print $fh "          $condition:\n";
-                while (my ($offset,$values) = each %{$offsets}) {
-                    print $fh "            $offset:\n";
-                    while (my ($key,$value) = each %{$values})  {
-                        print $fh "              $key: ". $value."\n";
-                    }
-                }
-            }
-        }
-    }
+    writeInterfaces($interfaces, $fh);
 }
 
-# Convert MRW OCC inventory path to application d-bus path
+#Convert MRW OCC inventory path to application d-bus path
 sub checkOccPathFixup
 {
     my ($path) = @_;
