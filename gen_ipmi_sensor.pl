@@ -116,6 +116,8 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
         my $readingType = $sensorTypeConfig->{$sensorName}->{"readingType"};
         my $sensorNamePattern =
                 $sensorTypeConfig->{$sensorName}->{"sensorNamePattern"};
+        my $mutability =
+                $sensorTypeConfig->{$sensorName}->{"mutability"};
 
         # store the values in hash
         my %data;
@@ -124,12 +126,14 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
         $data{'SERVICE_INTF'} = $serviceInterface;
         $data{'READING_TYPE'} = $readingType;
         $data{'SENSOR_NAME_PATTERN'} = $sensorNamePattern;
+        $data{'MUTABILITY'} = $mutability;
         $data{'ENTITY_ID'} = $entityID;
         $data{'ENTITY_INSTANCE'} = $entityInstance;
         $data{'FH'} = $fh;
 
         my $debug = "$sensorID : $sensorName : $sensorType : ";
         $debug .= "$serviceInterface: $readingType : $sensorNamePattern : ";
+        $debug .= "$serviceInterface: $readingType : $mutability : ";
         $debug .= "$entityID : $entityInstance : ";
         # temperature sensor
         if($sensorType == 0x01) {
@@ -255,6 +259,7 @@ sub writeToFile
     print $fh "  serviceInterface: ".$data{'SERVICE_INTF'}."\n";
     print $fh "  readingType: ".$data{'READING_TYPE'}."\n";
     print $fh "  sensorNamePattern: ".$data{'SENSOR_NAME_PATTERN'}."\n";
+    print $fh "  mutability: ".$data{'MUTABILITY'}."\n";
 
     # temperature sensor
     if ($sensorType == 0x01) {
