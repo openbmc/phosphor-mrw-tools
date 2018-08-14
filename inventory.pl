@@ -292,7 +292,7 @@ sub removeConnectors
 #Remove the processor module card from the path name.
 #Note: Serverwiz always outputs proc_socket-X/module-Y/proc.
 #      where proc_socket, module, and proc can be any name
-#      We already transormed it to module-X/proc.
+#      We already transformed it to module-X/proc.
 #      Our use requires proc-X.
 #      Note: No multichip modules in plan for OpenPower systems.
 sub removeProcModule

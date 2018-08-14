@@ -198,7 +198,7 @@ Finds the nearest FRU enclosing the input Target.
 
 =item adjustI2CPort(C<I2CPort>)
 
-Returns C<I2CPort> converted from MRW numering scheme to Linux numbering scheme.
+Returns C<I2CPort> converted from MRW numbering scheme to Linux numbering scheme.
 
 =back
 
