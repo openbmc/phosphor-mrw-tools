@@ -1,0 +1,9 @@
+Code-Review+1: Adriana Kobylak <anoo@linux.ibm.com>
+Code-Review+1: Brad Bishop <bradleyb@fuzziesquirrel.com>
+Code-Review+2: Matt Spinler <spinler@us.ibm.com>
+Verified+1: Matt Spinler <spinler@us.ibm.com>
+Submitted-by: Matt Spinler <spinler@us.ibm.com>
+Submitted-at: Mon, 10 Sep 2018 18:57:36 +0000
+Reviewed-on: https://gerrit.openbmc-project.xyz/11941
+Project: openbmc/phosphor-mrw-tools
+Branch: refs/heads/master
