@@ -36,7 +36,7 @@ my @inventory = Inventory::getInventory($targets);
 
 
 # paths
-my $i2cPath = "/sys/devices/platform/ahb/ahb:apb/ahb:apb:i2c\@1e78a000/1e78a100.i2c-bus/i2c-<port>/<port>-00<address>";
+my $i2cPath = "/sys/devices/platform/ahb/ahb:apb/ahb:apb:bus\@1e78a000/1e78a100.i2c-bus/i2c-<port>/<port>-00<address>";
 my $fsiMasterPath = "/sys/devices/platform/gpio-fsi/fsi0/slave\@00:00/raw";
 my $fsiSlavePath = "/sys/devices/platform/gpio-fsi/fsi0/slave\@00:00/00:00:00:0a/fsi1/slave\@<link>:00/raw";
 
