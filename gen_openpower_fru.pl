@@ -55,7 +55,11 @@ for my $item (@inventory) {
     if (!$targets->isBadAttribute($item->{TARGET}, "TYPE")) {
         $targetType = $targets->getAttribute($item->{TARGET}, "TYPE");
     }
-    next if (not exists $targetHash{$targetType});
+
+    my @types = grep(/$targetType$/, @targetTypes);
+
+    next if (length($targetType) == 0 ||
+             ((not exists $targetHash{$targetType}) && (scalar @types == 0)));
 
     push @targetTypes, $targetType;
     push @paths, $item->{OBMC_NAME};
