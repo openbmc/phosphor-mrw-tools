@@ -59,12 +59,12 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
 
     if ($targetObj->getTargetType($target) eq "unit-ipmi-sensor") {
 
-        $sensorID = $targetObj->getAttribute($target, "IPMI_SENSOR_ID");
-        $sensorType = $targetObj->getAttribute($target, "IPMI_SENSOR_TYPE");
-        $eventReadingType = $targetObj->getAttribute($target,
-                             "IPMI_SENSOR_READING_TYPE");
+        $sensorID = getNumeric($targetObj, $target, "IPMI_SENSOR_ID");
+        $sensorType = getNumeric($targetObj, $target, "IPMI_SENSOR_TYPE");
+        $eventReadingType = getNumeric(
+            $targetObj, $target, "IPMI_SENSOR_READING_TYPE");
         $path = $targetObj->getAttribute($target, "INSTANCE_PATH");
-        $entityID = $targetObj->getAttribute($target, "IPMI_ENTITY_ID");
+        $entityID = getNumeric($targetObj, $target, "IPMI_ENTITY_ID");
 
         # Look only for the interested Entity ID & Sensor Type
         next if (not exists $types{$entityID});
@@ -100,6 +100,16 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
     }
 }
 close $fh;
+
+sub getNumeric
+{
+    my $obj = shift;
+    my $target = shift;
+    my $attr = shift;
+    my $val = $obj->getAttribute($target, $attr);
+    $val = oct($val) if $val =~ /^0/;
+    return $val;
+}
 
 # Usage
 sub printUsage
