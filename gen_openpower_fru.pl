@@ -64,9 +64,12 @@ for my $item (@inventory) {
 
 for my $type (keys %targetHash)
 {
-    # One or more targets wasn't present in the inventory
-    push @targetTypes, $type;
-    push @paths, $defaultPaths{$type};
+    if(defined $defaultPaths{$type})
+    {
+        # One or more targets wasn't present in the inventory
+        push @targetTypes, $type;
+        push @paths, $defaultPaths{$type};
+    }
 }
 
 open(my $fh, '>', $outFile) or die "Could not open file '$outFile' $!";
