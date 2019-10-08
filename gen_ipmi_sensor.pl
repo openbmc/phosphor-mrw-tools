@@ -12,12 +12,14 @@ my $serverwizFile  = "";
 my $debug           = 0;
 my $outputFile     = "";
 my $metaDataFile   = "";
+my $skipBrokenMrw = 0;
 
 # Command line argument parsing
 GetOptions(
 "i=s" => \$serverwizFile,    # string
 "m=s" => \$metaDataFile,     # string
 "o=s" => \$outputFile,       # string
+"skip-broken-mrw" => \$skipBrokenMrw,
 "d"   => \$debug,
 )
 or printUsage();
@@ -88,6 +90,7 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
         #Instance path then die
 
         if ($sensorID eq '' or $sensorReadingType eq '' or $path eq '') {
+            next if $skipBrokenMrw;
             close $fh;
             die("sensor without info for target=$target");
         }
@@ -295,6 +298,7 @@ sub printUsage
     print "
     $0 -i [MRW filename] -m [SensorMetaData filename] -o [Output filename] [OPTIONS]
 Options:
+    --skip-broken-mrw = Skip broken MRW targets
     -d = debug mode
         \n";
     exit(1);

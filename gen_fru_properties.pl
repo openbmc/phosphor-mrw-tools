@@ -13,12 +13,14 @@ use YAML::Tiny qw(LoadFile);
 my $mrwFile = "";
 my $outFile = "";
 my $configFile = "";
+my $skipBrokenMrw = 0;
 
 
 GetOptions(
 "m=s" => \$mrwFile,
 "c=s" => \$configFile,
 "o=s" => \$outFile,
+"skip-broken-mrw" => \$skipBrokenMrw
 )
 or printUsage();
 
@@ -79,6 +81,10 @@ sub writeRemaining
     my ($yamlDict) = @_;
     for my $type (keys %targetHash)
     {
+        if($skipBrokenMrw and !exists $defaultPaths{$type})
+        {
+            next;
+        }
         print $fh $defaultPaths{$type}.":";
         print $fh "\n";
         while (my ($interface,$propertyMap) = each %{$yamlDict->{$type}})
@@ -140,6 +146,9 @@ sub getValue
 sub printUsage
 {
     print "
-    $0 -m [MRW file] -c [Config yaml] -o [Output filename]\n";
+    $0 -m [MRW file] -c [Config yaml] -o [Output filename] [OPTIONS]
+Options:
+    --skip-broken-mrw = Skip broken MRW targets
+    \n";
     exit(1);
 }
