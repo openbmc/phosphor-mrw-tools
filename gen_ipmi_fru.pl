@@ -1,4 +1,4 @@
-#! /usr/bin/perl
+#!/usr/bin/perl
 use strict;
 use warnings;
 
@@ -12,12 +12,14 @@ my $serverwizFile  = "";
 my $debug           = 0;
 my $outputFile     = "";
 my $metaDataFile   = "";
+my $skipBrokenMrw  = 0;
 
 # Command line argument parsing
 GetOptions(
 "i=s" => \$serverwizFile,    # string
 "m=s" => \$metaDataFile,     # string
 "o=s" => \$outputFile,       # string
+"skip-broken-mrw" => \$skipBrokenMrw,
 "d"   => \$debug,
 )
 or printUsage();
@@ -67,6 +69,10 @@ for my $item (@inventory) {
     #1) If not fru
     #2) if the fru type is not there in the config file.
     #3) if the fru type is in associated types.
+    #4) if FRU_ID is not defined for the target and we are asked to ignore such
+    #   targets.
+
+    next if ($skipBrokenMrw and ($fruID eq ""));
 
     next if (not $isFru or not exists $types{$fruType} or exists $allAssoTypesHash{$fruType});
 
@@ -173,6 +179,7 @@ sub printUsage
     $0 -i [MRW filename] -m [MetaData filename] -o [Output filename] [OPTIONS]
 Options:
     -d = debug mode
+    --skip-broken-mrw = Skip broken MRW targets
         \n";
     exit(1);
 }
