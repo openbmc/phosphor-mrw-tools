@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 This script applies patches to an XML file.
@@ -219,7 +219,7 @@ if __name__ == '__main__':
                                 patch_type)
 
         except Exception as e:
-            print e
+            print(e)
             errors.append(e)
 
     tree.write(args.output_xml)
