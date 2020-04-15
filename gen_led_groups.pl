@@ -131,14 +131,14 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
         }
 
         # By default, Blink takes higher priority
-        my $priority = "'Blink'";
+        my $priority = "\"Blink\"";
 
         # Get the priority. Since rest everything is populated,
         # default to Blink  than err'ing out. Not checking for
         # validity of this since it must be present.
         if($targetObj->getAttribute($ledTarget, "LED_PRIORITY") eq "ON")
         {
-            $priority = "'On'";
+            $priority = "\"On\"";
         }
 
         #The MRW instance name must match the LED name in the device tree
@@ -168,14 +168,14 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
                 printDebug("$groupName\n");
 
                 my $blinkFreq = $groups[$i+1];
-                my $action = "'On'";
+                my $action = "\"On\"";
                 my $period = 0;
 
                 # Period in milli seconds
                 my $dutyCycle = $groups[$i+2];
                 if($blinkFreq > 0)
                 {
-                    $action = "'Blink'";
+                    $action = "\"Blink\"";
                     $period = (1 / $blinkFreq) * 1000;
                 }
 
@@ -186,7 +186,7 @@ foreach my $target (sort keys %{$targetObj->getAllTargets()})
                 $hashGroup{$groupName}{$name}{"Priority"} = $priority;
 
                 # Need to update the LampTest group.
-                $hashGroup{$lampTest}{$name}{"Action"} = "'Blink'";
+                $hashGroup{$lampTest}{$name}{"Action"} = "\"Blink\"";
                 $hashGroup{$lampTest}{$name}{"Period"} = 1000;
                 $hashGroup{$lampTest}{$name}{"DutyOn"} = 50;
 
@@ -215,7 +215,7 @@ foreach my $key (sort keys %invHash)
     # Setup roll-up LEDs to the ones that are of type ENC-FAULT
     foreach my $led (sort keys %encFaults)
     {
-        $hashGroup{$groupName}{$led}{"Action"} = "'On'";
+        $hashGroup{$groupName}{$led}{"Action"} = "\"On\"";
         $hashGroup{$groupName}{$led}{"Period"} = 0;
         $hashGroup{$groupName}{$led}{"DutyOn"} = 50;
 
@@ -226,8 +226,8 @@ foreach my $key (sort keys %invHash)
 }
 printDebug("\n======================================================================\n");
 
-# Generate the yaml file
-generateYamlFile();
+# Generate the JSON file
+generateJSONFile();
 #------------------------------------END OF MAIN-----------------------
 
 # Gven a '/' separated string, returns the leaf.
@@ -240,15 +240,23 @@ sub getFruName
     $device=substr($path, $lastSlash+1);
 }
 
-sub generateYamlFile
+sub generateJSONFile
 {
     my $fileName = $outputFile;
     my $groupCopy = '';
     my $ledCopy = '';
     open(my $fh, '>', $fileName) or die "Could not open file '$fileName' $!";
 
+    print $fh "{\n\t\"leds\": [";
+    my $groupIndex;
     foreach my $group (sort keys %hashGroup)
     {
+        if($groupIndex)
+        {
+            print $fh ",";
+        }
+        print $fh "\n";
+        print $fh "\t\t{\n\t\t\t\"objpath\": \"/xyz/openbmc_project/led/groups/$group\",\n";
         if($group ne $groupCopy)
         {
             # If one of these is a default group, then delete it from the array
@@ -264,28 +272,48 @@ sub generateYamlFile
             $ledCopy = '';
         }
 
+        print $fh "\t\t\t\"groups\": [";
+        my $ledIndex;
         foreach my $led (sort keys %{ $hashGroup{$group} })
         {
+            if ($ledIndex)
+            {
+                print $fh ",";
+            }
+            print $fh "\n";
+            print $fh "\t\t\t\t{\n";
+            print $fh "\t\t\t\t\t\"name\": \"$led\",";
+
+            my $propertyIndex;
             foreach my $property (sort keys %{ $hashGroup{$group}{$led}})
             {
+                if ($propertyIndex)
+                {
+                    print $fh ",";
+                }
+                print $fh "\n";
                 if($group ne $groupCopy)
                 {
                     $groupCopy = $group;
-                    print $fh "$group:\n";
                 }
-                print $fh "    ";
                 if($led ne $ledCopy)
                 {
                     $ledCopy = $led;
-                    print $fh "$led:\n";
-                    print $fh "    ";
                 }
-                print $fh "    ";
-                print $fh "$property:";
-                print $fh " $hashGroup{$group}{$led}{$property}\n";
+                print $fh "\t\t\t\t\t\"$property\": $hashGroup{$group}{$led}{$property}";
+                $propertyIndex++;
             }
+            print $fh "\n";
+            print $fh "\t\t\t\t}";
+            $ledIndex++;
         }
+        print $fh "\n";
+        print $fh "\t\t\t]\n";
+        print $fh "\t\t}";
+        $groupIndex++;
     }
+    print $fh "\n";
+    print $fh "\t]\n}";
     # If we need to hand create some of the groups, do so now.
     foreach my $name (@defaultGroup)
     {
