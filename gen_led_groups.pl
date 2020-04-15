@@ -226,8 +226,19 @@ foreach my $key (sort keys %invHash)
 }
 printDebug("\n======================================================================\n");
 
-# Generate the yaml file
-generateYamlFile();
+my $index = rindex($outputFile, ".");
+my $suffix = substr($outputFile, $index + 1);
+if (lc($suffix) eq "json")
+{
+    # Generate the JSON file
+    generateJSONFile();
+}
+else
+{
+    # Generate the yaml file
+    generateYamlFile();
+}
+
 #------------------------------------END OF MAIN-----------------------
 
 # Gven a '/' separated string, returns the leaf.
@@ -291,6 +302,75 @@ sub generateYamlFile
     {
         print $fh "$name:\n";
     }
+    close $fh;
+}
+
+sub generateJSONFile
+{
+    package LEDGroups;
+    use JSON;
+    my $JSON = JSON->new->utf8->pretty(1);
+    $JSON->convert_blessed(1);
+
+    sub led
+    {
+        my $class = shift;
+        my $self = {
+            group => shift,
+            members => shift,
+        };
+        bless $self, $class;
+        return $self;
+    }
+
+    sub member
+    {
+        my $class = shift;
+        my $self = {
+            name => shift,
+            Action => shift,
+            DutyOn => shift,
+            Period => shift,
+            Priority => shift,
+        };
+        bless $self, $class;
+        return $self;
+    }
+
+    sub TO_JSON {
+        return { %{ shift() } };
+    }
+
+    my $fileName = $outputFile;
+    open(my $fh, '>', $fileName) or die "Could not open file '$fileName' $!";
+
+    my @leds = ();
+    foreach my $group (sort keys %hashGroup)
+    {
+        my @members = ();
+        foreach my $led (sort keys %{ $hashGroup{$group} })
+        {
+            my $dutyOn;
+            my $period;
+            if (exists $hashGroup{$group}{$led}{DutyOn})
+            {
+                $dutyOn = $hashGroup{$group}{$led}{DutyOn};
+            }
+
+            if (exists $hashGroup{$group}{$led}{Period})
+            {
+                $period = $hashGroup{$group}{$led}{Period};
+            }
+
+            my $m = member LEDGroups($led, "Blink", $dutyOn, $period, "Blink");
+            push @members, $m;
+        }
+        my $l = led LEDGroups($group, \@members);
+        push @leds, $l;
+    }
+    my %ledJson = ('leds' => \@leds);
+    my $json = $JSON->canonical(1)->encode(\%ledJson);
+    print $fh $json;
     close $fh;
 }
 
