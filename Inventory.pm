@@ -11,6 +11,10 @@ my %TYPES = (SYS => 1, NODE => 1, PROC => 1,
 #FRU = field replaceable unit, CRU = customer replaceable unit
 my %RU_TYPES = (FRU => 1, CRU => 1);
 
+
+#CONNECTOR_TYPES of external connectors
+my % CONNECTOR_TYPES = (USB => 1, HMC => 1);
+
 #Chips that are modeled as modules (card-chip together)
 my %MODULE_TYPES = (PROC => 1, GPU => 1);
 
@@ -49,6 +53,7 @@ sub findItems
     for my $target (sort keys %{$targetObj->getAllTargets()}) {
         my $type = "";
         my $ruType = "";
+        my $connType = "";
 
         if (!$targetObj->isBadAttribute($target, "TYPE")) {
             $type = $targetObj->getAttribute($target, "TYPE");
@@ -58,7 +63,12 @@ sub findItems
             $ruType = $targetObj->getAttribute($target, "RU_TYPE");
         }
 
-        if ((exists $TYPES{$type}) || (exists $RU_TYPES{$ruType})) {
+        if (!$targetObj->isBadAttribute($target, "CONNECTOR_TYPE")) {
+          $connType = $targetObj->getAttribute($target, "CONNECTOR_TYPE");
+        }
+
+        if ((exists $TYPES{$type}) || (exists $RU_TYPES{$ruType}) ||
+            (exists $CONNECTOR_TYPES{$connType})) {
             my %item;
             $item{TARGET} = $target;
             $item{OBMC_NAME} = $target; #Will fixup later
@@ -139,7 +149,9 @@ sub makeOBMCNames
 
     #We want card1, not card-1
     removeHyphensFromInstanceNum($inventory);
-
+    
+    replaceHyphensWithUnderscoreInObmcPath($inventory);
+    
     pointChassisAtMotherboard($targetObj, $inventory);
 }
 
@@ -207,7 +219,7 @@ sub removeConnectors
             my $pos = $targetObj->getAttribute($target, "POSITION");
 
             #change /connector-11/card-2/ to /card-11/
-            $item->{OBMC_NAME} =~ s/\b$segment\/(\w+)-\d+/$1-$pos/;
+            $item->{OBMC_NAME} =~ s/\b$segment\/((\w+-)+)\d+/$1$pos/;
 
         }
     }
@@ -395,6 +407,13 @@ sub removeInstNumIfOneInstPresent
     }
 }
 
+#Replaces hiphens '-' with underscore '_' in the OBMC path
+sub replaceHyphensWithUnderscoreInObmcPath {
+  my($inventory) = @_;
+     for my $item(@$inventory) {
+       $item->{OBMC_NAME} =~ s/\b(\w+)(-)/$1_/g;
+     }
+}
 
 #Removes the '-' from between the segment name and instance.
 sub removeHyphensFromInstanceNum
