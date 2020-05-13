@@ -4,406 +4,422 @@ use strict;
 use warnings;
 
 #Target types to always include in the inventory if present
-my %TYPES = (SYS => 1, NODE => 1, PROC => 1,
-             BMC => 1, GPU => 1, CORE => 1, OCC => 1, TPM => 1);
+my % TYPES = (SYS = > 1, NODE = > 1, PROC = > 1, BMC = > 1, GPU = > 1,
+              CORE = > 1, OCC = > 1, TPM = > 1);
 
 #RU_TYPES of cards to include
 #FRU = field replaceable unit, CRU = customer replaceable unit
-my %RU_TYPES = (FRU => 1, CRU => 1);
+my % RU_TYPES = (FRU = > 1, CRU = > 1);
 
-#Chips that are modeled as modules (card-chip together)
-my %MODULE_TYPES = (PROC => 1, GPU => 1);
+#CONNECTOR_TYPES of external connectors
+my % CONNECTOR_TYPES = (USB = > 1, HMC = > 1);
+
+#Chips that are modeled as modules(card - chip together)
+my % MODULE_TYPES = (PROC = > 1, GPU = > 1);
 
 #Returns an array of hashes that represents the inventory
-#for a system.  The hash elements are:
-#TARGET:  The MRW target of the item
-#OBMC_NAME: The OpenBMC name for the item.  This is usually
-#           a simplified version of the target.
-sub getInventory
-{
-    my $targetObj = shift;
-    my @inventory;
+#for a system.The hash elements are:
+#TARGET : The MRW target of the item
+#OBMC_NAME : The OpenBMC name for the item.This is usually
+#a simplified version of the target.
+sub getInventory {
+  my $targetObj = shift;
+  my @inventory;
 
-    if (ref($targetObj) ne "Targets") {
-        die "Invalid Targets object passed to getInventory\n";
-    }
+  if (ref($targetObj) ne "Targets") {
+    die "Invalid Targets object passed to getInventory\n";
+  }
 
-    findItems($targetObj, \@inventory);
+  findItems($targetObj, \@inventory);
 
-    pruneModuleCards($targetObj, \@inventory);
+  pruneModuleCards($targetObj, \@inventory);
 
-    makeOBMCNames($targetObj, \@inventory);
+  makeOBMCNames($targetObj, \@inventory);
 
-    return @inventory;
+  return @inventory;
 }
-
 
 #Finds the inventory targets in the MRW.
 #It selects them if the target's type is in %TYPES
-#or the target's RU_TYPE is in %RU_TYPES.
+# or the target's RU_TYPE is in %RU_TYPES.
 #This will pick up FRUs and other chips like the BMC and processor.
-sub findItems
-{
-    my ($targetObj, $inventory) = @_;
-
-    for my $target (sort keys %{$targetObj->getAllTargets()}) {
+sub findItems {
+  my($targetObj, $inventory) = @_;
+    for
+      my $target(sort keys % {$targetObj->getAllTargets()}) {
         my $type = "";
         my $ruType = "";
+        my $connType = "";
 
         if (!$targetObj->isBadAttribute($target, "TYPE")) {
-            $type = $targetObj->getAttribute($target, "TYPE");
+          $type = $targetObj->getAttribute($target, "TYPE");
         }
 
         if (!$targetObj->isBadAttribute($target, "RU_TYPE")) {
-            $ruType = $targetObj->getAttribute($target, "RU_TYPE");
+          $ruType = $targetObj->getAttribute($target, "RU_TYPE");
         }
 
-        if ((exists $TYPES{$type}) || (exists $RU_TYPES{$ruType})) {
-            my %item;
-            $item{TARGET} = $target;
-            $item{OBMC_NAME} = $target; #Will fixup later
-            push @$inventory, { %item };
+        if (!$targetObj->isBadAttribute($target, "CONNECTOR_TYPE")) {
+          $connType = $targetObj->getAttribute($target, "CONNECTOR_TYPE");
         }
-    }
+
+        if ((exists $TYPES{$type}) || (exists $RU_TYPES{$ruType}) ||
+            (exists $CONNECTOR_TYPES{$connType})) {
+          my % item;
+          $item{TARGET} = $target;
+          $item{OBMC_NAME} = $target;
+#Will fixup later push @$inventory, { % item };
+        }
+      }
 }
-
 
 #Removes entries from the inventory for the card target of a module.
 #Needed because processors and GPUs are modeled as a package which
-#is a card-chip instance that plugs into a connector on the
-#backplane/processor card.  Since we already include the chip target
-#in the inventory (that's how we can identify what it is), we don't
+#is a card - chip instance that plugs into a connector on the
+#backplane / processor card.Since we already include the chip target
+#in the inventory(that 's how we can identify what it is), we don' t
 #need the entry for the card target.
 #
-#For example, we'll already have .../module-0/proc-0 so we don't
-#need a separate .../module-0 entry.
-sub pruneModuleCards
-{
-    my ($targetObj, $inventory) = @_;
-    my @toRemove;
+#For example, we 'll already have .../module-0/proc-0 so we don' t
+#need a separate... / module - 0 entry.
+sub pruneModuleCards {
+  my($targetObj, $inventory) = @_;
+  my @toRemove;
 
-    #Find the parent (a card) of items of type %type
-    for my $item (@$inventory) {
+#Find the parent(a card) of items of type % type
+    for
+      my $item(@$inventory) {
 
         if (exists $MODULE_TYPES{$targetObj->getType($item->{TARGET})}) {
-            my $card = $targetObj->getTargetParent($item->{TARGET});
-            push @toRemove, $card;
+          my $card = $targetObj->getTargetParent($item->{TARGET});
+          push @toRemove, $card;
         }
-    }
+      }
 
-    #Remove these parent cards
-    for my $c (@toRemove) {
-        for my $i (0 .. (scalar @$inventory) - 1) {
-            if ($c eq $inventory->[$i]{TARGET}) {
-                splice(@$inventory, $i, 1);
-                last;
+#Remove these parent cards
+    for
+      my $c(@toRemove) {
+        for
+          my $i(0..(scalar @$inventory) - 1) {
+            if ($c eq $inventory->[$i] { TARGET }) {
+              splice(@$inventory, $i, 1);
+              last;
             }
-        }
-    }
+          }
+      }
 }
-
 
 #Makes the OpenBMC name for the targets in the inventory.
 #Removes unnecessary segments of the path name, renames
 #some segments to match standard conventions, and numbers
 #segments based on their position attribute.
-sub makeOBMCNames
-{
-    my ($targetObj, $inventory) = @_;
+sub makeOBMCNames {
 
-    #Remove connector segments from the OBMC_NAME
-    removeConnectors($targetObj, $inventory);
+  my($targetObj, $inventory) = @_;
 
-    #Don't need the card instance of a PROC/GPU module
-    removeModuleFromPath($targetObj, $inventory);
+#Remove connector segments from the OBMC_NAME
+  removeConnectors($targetObj, $inventory);
 
-    #Don't need card segments for non-FRUs
-    removeNonFRUCardSegments($targetObj, $inventory);
+#Don't need the card instance of a PROC/GPU module
+  removeModuleFromPath($targetObj, $inventory);
 
-    #Don't need to show the middle units between proc & core
-    removeIntermediateUnits($targetObj, $inventory);
+#Don't need card segments for non-FRUs
+  removeNonFRUCardSegments($targetObj, $inventory);
 
-    #Certain parts have standard naming
-    renameSegmentWithType("PROC", "cpu", $targetObj, $inventory);
-    renameSegmentWithType("SYS", "system", $targetObj, $inventory);
-    renameSegmentWithType("NODE", "chassis", $targetObj, $inventory);
+#Don't need to show the middle units between proc & core
+  removeIntermediateUnits($targetObj, $inventory);
 
-    #Make sure the motherboard is called 'motherboard' in the OBMC_NAME.
-    #The only way to identify it is with its TARGET_TYPE,
-    #which is different than the regular type.
-    renameSegmentWithTargetType("card-motherboard", "motherboard",
-                                $targetObj, $inventory);
+#Certain parts have standard naming
+  renameSegmentWithType("PROC", "cpu", $targetObj, $inventory);
+  renameSegmentWithType("SYS", "system", $targetObj, $inventory);
+  renameSegmentWithType("NODE", "chassis", $targetObj, $inventory);
 
-    #Don't need instance numbers unless there are more than 1 present
-    removeInstNumIfOneInstPresent($inventory);
+#Make sure the motherboard is called 'motherboard' in the OBMC_NAME.
+#The only way to identify it is with its TARGET_TYPE,
+#which is different than the regular type.
+  renameSegmentWithTargetType("card-motherboard", "motherboard", $targetObj,
+                              $inventory);
 
-    #We want card1, not card-1
-    removeHyphensFromInstanceNum($inventory);
+#Don't need instance numbers unless there are more than 1 present
+  removeInstNumIfOneInstPresent($inventory);
 
-    pointChassisAtMotherboard($targetObj, $inventory);
+#We want card1, not card - 1
+  removeHyphensFromInstanceNum($inventory);
+
+  replaceHyphensWithUnderscoreInObmcPath($inventory);
+
+  pointChassisAtMotherboard($targetObj, $inventory);
 }
 
+#Removes non - FRU cards in the middle of a hierarchy from OBMC_NAME.
+#For example, ... / motherboard / fanriser - 0 / fan - 0->
+#... / motherboard / fan - 0 when fanriser - 0 isn't a FRU.
+sub removeNonFRUCardSegments {
+  my($targetObj, $inventory) = @_;
 
-#Removes non-FRU cards in the middle of a hierarchy from OBMC_NAME.
-#For example, .../motherboard/fanriser-0/fan-0 ->
-# .../motherboard/fan-0 when fanriser-0 isn't a FRU.
-sub removeNonFRUCardSegments
-{
-    my ($targetObj, $inventory) = @_;
+    for
+      my $item(@$inventory) {
 
-    for my $item (@$inventory) {
-
-        #Split the target into segments, then start
-        #adding segments in to make new targets so we can
-        #make API calls on the segment instances.
+#Split the target into segments, then start
+#adding segments in to make new targets so we can
+#make API calls on the segment instances.
         my @segments = split('/', $item->{TARGET});
         my $target = "";
-        for my $s (@segments) {
+        for
+          my $s(@segments) {
             next if (length($s) == 0);
 
-            $target .= "/$s";
+            $target.= "/$s";
 
             my $class = $targetObj->getAttribute($target, "CLASS");
             next if ($class ne "CARD");
 
             my $ruType = $targetObj->getAttribute($target, "RU_TYPE");
 
-            #If this segment is a card but not a FRU,
-            #remove it from the path.
+#If this segment is a card but not a FRU,
+#remove it from the path.
             if (not exists $RU_TYPES{$ruType}) {
-                my $segment = $targetObj->getInstanceName($target);
-                $item->{OBMC_NAME} =~ s/\b$segment-\d+\b\///;
+              my $segment = $targetObj->getInstanceName($target);
+              $item->{OBMC_NAME} = ~s /\b$segment -\d +\b\ ///;
             }
-        }
-    }
+          }
+      }
 }
 
-
-#Removes connectors from the OBMC_NAME element.  Also
+#Removes connectors from the OBMC_NAME element.Also
 #takes the POSITION value of the connector and adds it
 #to the card segment that plugs into the connector.
 #For example:
-#  /motherboard/card-conn-5/card-0 ->
-#  /motherobard/card-5
-sub removeConnectors
-{
-    my ($targetObj, $inventory) = @_;
+#/ motherboard / card - conn - 5 / card - 0->
+#/ motherobard / card - 5
+sub removeConnectors {
+  my($targetObj, $inventory) = @_;
 
-    #Find the connectors embedded in the segments
-    for my $item (@$inventory) {
+#Find the connectors embedded in the segments
+    for
+      my $item(@$inventory) {
 
-        #Split the target into segments, then start
-        #adding segments in to make new targets
+#Split the target into segments, then start
+#adding segments in to make new targets
         my @segments = split('/', $item->{TARGET});
+
         my $target = "";
-        for my $s (@segments) {
+        for
+          my $s(@segments) {
             next if (length($s) == 0);
 
-            $target .= "/$s";
+            $target.= "/$s";
             my $class = $targetObj->getAttribute($target, "CLASS");
-            next unless ($class eq "CONNECTOR");
+            next unless($class eq "CONNECTOR");
 
-            my ($segment) = $target =~ /\b(\w+-\d+)$/;
+            my($segment) = $target = ~ /\b(\w + -\d +) $ / ;
             my $pos = $targetObj->getAttribute($target, "POSITION");
 
-            #change /connector-11/card-2/ to /card-11/
-            $item->{OBMC_NAME} =~ s/\b$segment\/(\w+)-\d+/$1-$pos/;
-
-        }
-    }
+#change / connector - 11 / card - 2 / to / card - 11 /
+            $item->{OBMC_NAME} = ~s /\b$segment\/ ((\w + -) +)\d + / $1$pos / ;
+          }
+      }
 }
 
-
 #Units, typically cores, can be subunits of other subunits of
-#their parent chip.  We can remove all of these intermediate
-#units.  For example, cpu0/someunit1/someunit2/core3 ->
-#cpu0/core3.
-sub removeIntermediateUnits
-{
-    my ($targetObj, $inventory) = @_;
+#their parent chip.We can remove all of these intermediate
+#units.For example, cpu0 / someunit1 / someunit2 / core3->
+#cpu0 / core3.
+sub removeIntermediateUnits {
+  my($targetObj, $inventory) = @_;
 
-    for my $item (@$inventory) {
+    for
+      my $item(@$inventory) {
 
         my $class = $targetObj->getAttribute($item->{TARGET}, "CLASS");
-        next unless ($class eq "UNIT");
+        next unless($class eq "UNIT");
 
         my $parent = $targetObj->getTargetParent($item->{TARGET});
 
-        #Remove all of these intermediate units until we find
-        #something that isn't a unit (most likely a chip).
+#Remove all of these intermediate units until we find
+#something that isn't a unit (most likely a chip).
         while ($targetObj->getAttribute($parent, "CLASS") eq "UNIT") {
 
-            my $name = $targetObj->getInstanceName($parent);
-            $item->{OBMC_NAME} =~ s/$name(-)*(\d+)*\///;
+          my $name = $targetObj->getInstanceName($parent);
+          $item->{OBMC_NAME} = ~s / $name(-) *
+                               (\d +) *\ ///;
 
-            $parent = $targetObj->getTargetParent($parent);
+                               $parent = $targetObj->getTargetParent($parent);
         }
-    }
+      }
 }
-
 
 #Renames segments of the paths to the name passed in
 #based on the type of the segment.
 #For example:
-# renameSegmentWithType("PROC", "cpu", ...);
-# With a target of:
-#   motherboard-0/myp9proc-5/core-3
-# Where target motherboard-0/myp9proc-5 has a type
-# of PROC, gives:
-#   motherboard-0/cpu-5/core-3
-sub renameSegmentWithType
-{
-    my ($type, $newSegment, $targetObj, $inventory) = @_;
+#renameSegmentWithType("PROC", "cpu", ...);
+#With a target of:
+#motherboard - 0 / myp9proc - 5 / core - 3
+#Where target motherboard - 0 / myp9proc - 5 has a type
+#of PROC, gives:
+#motherboard - 0 / cpu - 5 / core - 3
+sub renameSegmentWithType {
+  my($type, $newSegment, $targetObj, $inventory) = @_;
 
-    #Find the targets for all the segments, and
-    #if their type matches what we're looking for, then
-    #save it so we can rename them later.
-    for my $item (@$inventory) {
+#Find the targets for all the segments, and
+#if their type matches what we're looking for, then
+#save it so we can rename them later.
+    for
+      my $item(@$inventory) {
 
         my @segments = split('/', $item->{TARGET});
         my $target = "";
 
-        for my $s (@segments) {
+        for
+          my $s(@segments) {
             next if (length($s) == 0);
 
-            $target .= "/$s";
+            $target.= "/$s";
             my $curType = $targetObj->getType($target);
-            next unless ($curType eq $type);
+            next unless($curType eq $type);
 
             my $oldSegment = $targetObj->getInstanceName($target);
-            $item->{OBMC_NAME} =~ s/$oldSegment/$newSegment/;
-        }
-    }
+            $item->{OBMC_NAME} = ~s / $oldSegment / $newSegment / ;
+          }
+      }
 }
-
 
 #Removes the card portion of a module from OBMC_NAME.
-#For example, .../motherboard-0/module-1/proc-0 ->
-#.../motherboard-0/proc-1.
-#This needs to be revisited if multi-processor modules
+#For example, ... / motherboard - 0 / module - 1 / proc - 0->
+#... / motherboard - 0 / proc - 1.
+#This needs to be revisited if multi - processor modules
 #ever come into plan.
-sub removeModuleFromPath
-{
-    my ($targetObj, $inventory) = @_;
-    my %chipNames;
+sub removeModuleFromPath {
+  my($targetObj, $inventory) = @_;
+  my % chipNames;
 
-    #Find the names of the chips on the modules
-    for my $item (@$inventory) {
+#Find the names of the chips on the modules
+    for
+      my $item(@$inventory) {
         if (exists $MODULE_TYPES{$targetObj->getType($item->{TARGET})}) {
-            $chipNames{$targetObj->getInstanceName($item->{TARGET})} = 1;
+          $chipNames{$targetObj->getInstanceName($item->{TARGET})} = 1;
         }
-    }
+      }
 
-    #Now convert module-A/name-B to name-A
-    #Note that the -B isn't always present
-    for my $item (@$inventory) {
+#Now convert module - A / name - B to name - A
+#Note that the - B isn't always present
+    for
+      my $item(@$inventory) {
 
-        for my $name (keys %chipNames) {
-            $item->{OBMC_NAME} =~ s/\w+-(\d+)\/$name(-\d+)*/$name-$1/;
-        }
-    }
+        for
+          my $name(keys % chipNames) {
+            $item->{OBMC_NAME} =
+                ~s /\w + -(\d +)\/ $name(-\d +) * / $name - $1 /
+                ;
+          }
+      }
 }
-
 
 #The same as renameSegmentWithType, but finds the segment
 #to rename by calling Targets::getTargetType() on it
 #instead of Targets::getType().
-sub renameSegmentWithTargetType
-{
-    my ($type, $newSegment, $targetObj, $inventory) = @_;
+sub renameSegmentWithTargetType {
+  my($type, $newSegment, $targetObj, $inventory) = @_;
 
-    for my $item (@$inventory) {
+    for
+      my $item(@$inventory) {
 
         my @segments = split('/', $item->{TARGET});
         my $target = "";
 
-        for my $s (@segments) {
+        for
+          my $s(@segments) {
             next if (length($s) == 0);
 
-            $target .= "/$s";
+            $target.= "/$s";
             my $curType = $targetObj->getTargetType($target);
-            next unless ($curType eq $type);
+            next unless($curType eq $type);
 
             my $oldSegment = $targetObj->getInstanceName($target);
-            $item->{OBMC_NAME} =~ s/$oldSegment/$newSegment/;
-        }
-    }
+            $item->{OBMC_NAME} = ~s / $oldSegment / $newSegment / ;
+          }
+      }
 }
 
+#FRU management code needs the node / chassis item to point
+#to the motherboard and not / system / chassis.Can revisit this
+#for multi - chassis systems if they ever show up.
+sub pointChassisAtMotherboard {
+  my($targetObj, $inventory) = @_;
+  my $newName = undef;
 
-#FRU management code needs the node/chassis item to point
-#to the motherboard and not /system/chassis.  Can revisit this
-#for multi-chassis systems if they ever show up.
-sub pointChassisAtMotherboard
-{
-    my ($targetObj, $inventory) = @_;
-    my $newName = undef;
-
-    for my $item (@$inventory) {
+    for
+      my $item(@$inventory) {
         my $type = $targetObj->getTargetType($item->{TARGET});
         if ($type eq "card-motherboard") {
-            $newName = $item->{OBMC_NAME};
-            last;
+          $newName = $item->{OBMC_NAME};
+          last;
         }
-    }
+      }
 
-    for my $item (@$inventory) {
+    for
+      my $item(@$inventory) {
         if ($targetObj->getType($item->{TARGET}) eq "NODE") {
-            if (defined $newName) {
-                $item->{OBMC_NAME} = $newName;
-            }
-            last;
+          if (defined $newName) {
+            $item->{OBMC_NAME} = $newName;
+          }
+          last;
         }
-    }
+      }
 }
-
 
 #Removes the instance number from the OBMC_NAME segments
 #where only 1 of those segments exists because numbering isn't
 #necessary to distinguish them.
-sub removeInstNumIfOneInstPresent
-{
-    my ($inventory) = @_;
-    my %instanceHash;
+sub removeInstNumIfOneInstPresent {
+  my($inventory) = @_;
+  my % instanceHash;
 
-    for my $item (@$inventory) {
-        #Look at all the segments, keeping track if we've
-        #seen a particular segment with the same instance before.
+    for
+      my $item(@$inventory) {
+#Look at all the segments, keeping track if we've
+#seen a particular segment with the same instance before.
         my @segments = split('/', $item->{OBMC_NAME});
-        for my $segment (@segments) {
-            my ($s, $inst) = $segment =~ /(\w+)-(\d+)/;
+        for
+          my $segment(@segments) {
+            my($s, $inst) = $segment = ~ / (\w +) - (\d +) / ;
             if (defined $s) {
-                if (not exists $instanceHash{$s}) {
-                    $instanceHash{$s}{inst} = $inst;
+              if (not exists $instanceHash{$s}) {
+                $instanceHash{$s} {inst} = $inst;
+              } else {
+                if ($instanceHash{$s} {inst} ne $inst) {
+                  $instanceHash{$s} {keep} = 1;
                 }
-                else {
-                    if ($instanceHash{$s}{inst} ne $inst) {
-                        $instanceHash{$s}{keep} = 1;
-                    }
-                }
+              }
             }
-        }
-    }
+          }
+      }
 
-    #Remove the instanc numbers we don't need to keep.
-    for my $segment (keys %instanceHash) {
-        if (not exists $instanceHash{$segment}{keep}) {
-            for my $item (@$inventory) {
-               $item->{OBMC_NAME} =~ s/$segment-\d+/$segment/;
-            }
+#Remove the instanc numbers we don't need to keep.
+    for
+      my $segment(keys % instanceHash) {
+        if (not exists $instanceHash{$segment} {keep}) {
+            for
+              my $item(@$inventory) {
+                $item->{OBMC_NAME} = ~s / $segment -\d + / $segment / ;
+              }
         }
-    }
+      }
 }
 
+#Replaces hiphens '-' with underscore '_' in the OBMC path
+sub replaceHyphensWithUnderscoreInObmcPath {
+  my($inventory) = @_;
+   for
+     my $item(@$inventory) { $item->{OBMC_NAME} = ~s /\b(\w +)(-) / $1_ / g; }
+}
 
 #Removes the '-' from between the segment name and instance.
-sub removeHyphensFromInstanceNum
-{
-    my ($inventory) = @_;
+sub removeHyphensFromInstanceNum {
+  my($inventory) = @_;
 
-    for my $item (@$inventory) {
-        $item->{OBMC_NAME} =~ s/-(\d+)\b/$1/g;
-    }
+    for
+      my $item(@$inventory) { $item->{OBMC_NAME} = ~s / -(\d +)\b / $1 / g; }
 }
 
 1;
