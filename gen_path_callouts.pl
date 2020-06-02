@@ -252,6 +252,7 @@ my @callouts;
 # Build the single and multi segment callouts
 buildCallouts(\%allSegments, \@callouts);
 
+printJSON(\@callouts);
 
 # Write the segments to a JSON file
 if ($printSegments)
@@ -669,6 +670,162 @@ sub createSPICallout
     return $spiCallout;
 }
 
+# Convert all of the *Callout objects to JSON and write them to a file.
+# It will convert the callout target names to location codes and also sort
+# the callout list before doing so.
+sub printJSON
+{
+    my $callouts = shift;
+    my %output;
+
+    for my $callout (@$callouts)
+    {
+        my %c;
+        $c{Source} = $callout->sourceChip();
+        $c{Dest} = $callout->destChip();
+
+        for my $fruCallout (@{$callout->calloutList()})
+        {
+            my %entry;
+
+            if (length($fruCallout->{Name}) == 0)
+            {
+                die "Could not get target name for a callout on path:\n" .
+                 "    (" . $callout->sourceChip() . ") ->\n" .
+                 "    (" . $callout->destChip() . ")\n";
+            }
+
+            $entry{Name} = $fruCallout->{Name};
+
+            $entry{LocationCode} =
+                Util::getLocationCode($targets, $fruCallout->{Name});
+
+            # MRUs - for now just use the path + MRU name
+            if (exists $fruCallout->{MRU})
+            {
+                $entry{MRU} = $entry{Name} . "/" . $fruCallout->{MRU};
+            }
+
+            $entry{Priority} = validatePriority($fruCallout->{Priority});
+
+            push @{$c{Callouts}}, \%entry;
+        }
+
+
+        # Remove duplicate callouts and sort
+        @{$c{Callouts}} = sortCallouts(@{$c{Callouts}});
+
+        # Setup the entry based on the callout type
+        if ($callout->type() eq "I2C")
+        {
+            # The address key is in decimal, but save the hex value
+            # for easier debug.
+            $c{HexAddress} = $callout->i2cAddress();
+            my $decimal = hex($callout->i2cAddress());
+
+            $output{"I2C"}{$callout->i2cBus()}{$decimal} = \%c;
+        }
+        elsif ($callout->type() eq "SPI")
+        {
+            $output{"SPI"}{$callout->spiBus()} = \%c;
+        }
+        elsif ($callout->type() eq "FSI")
+        {
+            $output{"FSI"}{$callout->fsiLink()} = \%c;
+        }
+        elsif ($callout->type() eq "FSI-I2C")
+        {
+            $c{HexAddress} = $callout->i2cAddress();
+            my $decimal = hex($callout->i2cAddress());
+
+            $output{"FSI-I2C"}{$callout->fsiLink()}
+                {$callout->i2cBus()}{$decimal} = \%c;
+        }
+        elsif ($callout->type() eq "FSI-SPI")
+        {
+            $output{"FSI-SPI"}{$callout->fsiLink()}{$callout->spiBus()} = \%c;
+        }
+    }
+
+    open(my $fh, '>', $outFile) or die "Could not open file '$outFile' $!";
+    my $json = JSON->new->utf8;
+    $json->indent(1);
+    $json->canonical(1);
+    my $text = $json->encode(\%output);
+    print $fh $text;
+    close $fh;
+}
+
+# This will remove duplicate callouts from the input callout list, keeping
+# the highest priority value and MRU, and then also sort by priority.
+#
+# There could be duplicates when multiple single segment callouts are
+# combined into 1.
+sub sortCallouts
+{
+    my @callouts = @_;
+
+    # This will undef the duplicates, and then remove them at the end,
+    for (my $i = 0; $i < (scalar @callouts) - 1; $i++)
+    {
+        next if not defined $callouts[$i];
+
+        for (my $j = $i + 1; $j < (scalar @callouts); $j++)
+        {
+            next if not defined $callouts[$j];
+
+            if ($callouts[$i]->{LocationCode} eq $callouts[$j]->{LocationCode})
+            {
+                # Keep the highest priority value
+                $callouts[$i]->{Priority} = getHighestPriority(
+                    $callouts[$i]->{Priority}, $callouts[$j]->{Priority});
+
+                # Keep the MRU if present
+                if (defined $callouts[$j]->{MRU})
+                {
+                    $callouts[$i]->{MRU} = $callouts[$j]->{MRU};
+                }
+
+                $callouts[$j] = undef;
+            }
+        }
+    }
+
+    # removed the undefined ones
+    @callouts = grep {defined ($_)} @callouts;
+
+    # sort from highest to lowest priorities
+    @callouts = sort {
+        $priorities{$b->{Priority}} <=> $priorities{$a->{Priority}}
+    } @callouts;
+
+    return @callouts;
+}
+
+# Returns the highest priority value of the two passed in
+sub getHighestPriority
+{
+    my ($p1, $p2) = @_;
+
+    if ($priorities{$p1} > $priorities{$p2})
+    {
+        return $p1;
+    }
+    return $p2;
+}
+
+# Dies if the input priority isn't valid
+sub validatePriority
+{
+    my $priority = shift;
+
+    if (not exists $priorities{$priority})
+    {
+        die "Invalid callout priority found: $priority\n";
+    }
+
+    return $priority;
+}
 
 sub printUsage
 {
