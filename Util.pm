@@ -149,6 +149,61 @@ sub adjustI2CPort
     return $port - 1;
 }
 
+# Get the location code for the target passed in, like P1-C5.
+#  $targets = the targets object
+#  $target = target to get the location code of
+sub getLocationCode
+{
+    my ($targets, $passedInTarget) = @_;
+    my $locCode = undef;
+    my $target = $passedInTarget;
+    my $done = 0;
+
+    # Walk up the parent chain prepending segments until an absolute
+    # location code is found.
+    while (!$done)
+    {
+        if (!$targets->isBadAttribute($target, "LOCATION_CODE"))
+        {
+            my $loc = $targets->getAttribute($target, "LOCATION_CODE");
+            my $type = $targets->getAttribute($target, "LOCATION_CODE_TYPE");
+
+            if (length($loc) > 0 )
+            {
+                if (defined $locCode)
+                {
+                    $locCode = $loc . '-' . $locCode;
+                }
+                else
+                {
+                    $locCode = $loc;
+                }
+
+                if ($type eq "ABSOLUTE")
+                {
+                    $done = 1;
+                }
+            }
+            else
+            {
+                die "Missing location code on $target\n" if $type eq "ABSOLUTE";
+            }
+        }
+
+        if (!$done)
+        {
+            $target = $targets->getTargetParent($target);
+            if (not defined $target)
+            {
+                die "Did not find complete location " .
+                    "code for $passedInTarget\n";
+            }
+        }
+    }
+
+    return $locCode;
+}
+
 1;
 
 =head1 NAME
@@ -199,6 +254,10 @@ Finds the nearest FRU enclosing the input Target.
 =item adjustI2CPort(C<I2CPort>)
 
 Returns C<I2CPort> converted from MRW numbering scheme to Linux numbering scheme.
+
+=item getLocationCode(C<TargetsObj, C<Target>)
+
+Gets the location code for the input Target.
 
 =back
 
