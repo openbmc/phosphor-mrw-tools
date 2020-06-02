@@ -149,6 +149,67 @@ sub spiBus
     return $self->{SPIBus};
 }
 
+# FSII2CCallout object for FSI-I2C callouts
+# Ideally this would be derived from FSICallout, but I can't
+# get it to work.
+package FSII2CCallout;
+
+our @ISA = qw(Callout);
+sub new
+{
+    my ($class) = @_;
+    # source, dest, calloutList
+    my $self = $class->SUPER::new("FSI-I2C", $_[1], $_[2], $_[3]);
+    $self->{FSILink} = $_[4];
+    $self->{i2cBus} = $_[5];
+    $self->{i2cAddr} = $_[6];
+    return bless $self, $class;
+}
+
+sub fsiLink
+{
+    my $self = shift;
+    return $self->{FSILink};
+}
+
+sub i2cBus
+{
+    my $self = shift;
+    return $self->{i2cBus};
+}
+
+sub i2cAddress
+{
+    my $self = shift;
+    return $self->{i2cAddr};
+}
+
+#FSISPICallout object for FSI-SPI callouts
+package FSISPICallout;
+
+our @ISA = qw(Callout);
+sub new
+{
+    my ($class) = @_;
+    # source, dest, calloutList
+    my $self = $class->SUPER::new("FSI-SPI", $_[1], $_[2], $_[3]);
+    $self->{FSILink} = $_[4];
+    $self->{SPIBus} = $_[5];
+    return bless $self, $class;
+}
+
+sub fsiLink
+{
+    my $self = shift;
+    return $self->{FSILink};
+}
+
+sub spiBus
+{
+    my $self = shift;
+    return $self->{SPIBus};
+}
+
 package main;
 
 use mrw::Targets;
@@ -385,6 +446,9 @@ sub buildCallouts
 
     # Callouts for 1 segment connections directly off of the BMC.
     buildBMCSingleSegmentCallouts($segments, $callouts);
+
+    # Callouts more than 1 segment away
+    buildMultiSegmentCallouts($segments, $callouts);
 }
 
 # Build the callout objects for devices 1 segment away.
@@ -430,6 +494,130 @@ sub buildSingleSegmentCallout
     }
 
     return undef;
+}
+
+# Build the callout objects for devices more than 1 segment away from
+# the BMC.  All but the last segment will always be FSI.  The FRU
+# callouts accumulate as segments are added.
+sub buildMultiSegmentCallouts
+{
+    my ($segments, $callouts) = @_;
+    my $hops = 0;
+    my $found = 1;
+
+    # Connect FSI link callouts to other FSI segments to make new callouts, and
+    # connect all FSI link callouts up with the I2C/SPI segments to make even
+    # more new callouts.  Note: Deal with I2C muxes, if they are ever modeled,
+    # when there are some.
+
+    # Each time through the loop, go out another FSI hop.
+    # Stop when no more new hops are found.
+    while ($found)
+    {
+        my @newCallouts;
+        $found = 0;
+
+        for my $callout (@$callouts)
+        {
+            if ($callout->type() ne "FSI")
+            {
+                next;
+            }
+
+            # link numbers are separated by '-'s in the link field,
+            # so 0-5 = 1 hop
+            my @numHops = $callout->fsiLink() =~ /(-)/g;
+
+            # only deal with callout objects that contain $hops hops.
+            if ($hops != scalar @numHops)
+            {
+                next;
+            }
+
+            for my $segmentType (keys %$segments)
+            {
+                for my $segment (@{$$segments{$segmentType}})
+                {
+                    # If the destination on this callout is the same
+                    # as the source of the segment, then make a new
+                    # callout that spans both.
+                    if ($callout->destChip() eq $segment->{SourceChip})
+                    {
+                        # First build the new single segment callout
+                        my $segmentCallout =
+                            buildSingleSegmentCallout($segment);
+
+                        # Now merge both callouts into one.
+                        if (defined $segmentCallout)
+                        {
+                            my $newCallout =
+                                mergeCallouts($callout, $segmentCallout);
+
+                            push @newCallouts, $newCallout;
+                            $found = 1;
+                        }
+                    }
+                }
+            }
+        }
+
+        if ($found)
+        {
+            push @{$callouts}, @newCallouts;
+        }
+
+        $hops = $hops + 1;
+    }
+}
+
+# Merge 2 callout objects into 1 that contains all of their FRU callouts.
+sub mergeCallouts
+{
+    my ($firstCallout, $secondCallout) = @_;
+
+    # This callout list will be merged/sorted later.
+    # Endpoint callouts are added first, so they will be higher
+    # in the callout list (priority permitting).
+    my @calloutList;
+    push @calloutList, @{$secondCallout->calloutList()};
+    push @calloutList, @{$firstCallout->calloutList()};
+
+    # FSI
+    if (($firstCallout->type() eq  "FSI") && ($secondCallout->type() eq "FSI"))
+    {
+        # combine the FSI links with a -
+        my $FSILink = $firstCallout->fsiLink() . "-" .
+            $secondCallout->fsiLink();
+
+        my $fsiCallout =  new FSICallout($firstCallout->sourceChip(),
+            $secondCallout->destChip(), \@calloutList, $FSILink);
+
+        return $fsiCallout;
+    }
+    # FSI-I2C
+    elsif (($firstCallout->type() eq  "FSI") &&
+        ($secondCallout->type() eq "I2C"))
+    {
+        my $i2cCallout = new FSII2CCallout($firstCallout->sourceChip(),
+            $secondCallout->destChip(), \@calloutList,
+            $firstCallout->fsiLink(),  $secondCallout->i2cBus(),
+            $secondCallout->i2cAddress());
+
+        return $i2cCallout;
+    }
+    # FSI-SPI
+    elsif (($firstCallout->type() eq  "FSI") &&
+        ($secondCallout->type() eq "SPI"))
+    {
+        my $spiCallout = new FSISPICallout($firstCallout->sourceChip(),
+            $secondCallout->destChip(), \@calloutList,
+            $firstCallout->fsiLink(), $secondCallout->spiBus());
+
+        return $spiCallout;
+    }
+
+    die "Unrecognized callouts to merge: " . $firstCallout->type() .
+    " " . $secondCallout->type() . "\n";
 }
 
 # Create an I2CCallout object
