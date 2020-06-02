@@ -13,6 +13,7 @@ Module::Build->new(
                      'gen_ipmi_sensor.pl',
                      'gen_led_groups.pl',
                      'gen_openpower_fru.pl',
+                     'gen_path_callouts.pl',
                      'gen_presence_yaml.pl',
                      'gen_occ_map.pl',
                      'gen_settings.pl',
