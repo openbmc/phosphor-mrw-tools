@@ -46,6 +46,111 @@
 use strict;
 use warnings;
 
+# Callout object
+# Base class for other callouts.
+# There is an object per device, so it can contain multiple
+# FRU callouts in the calloutList attribute.
+package Callout;
+sub new
+{
+    my $class = shift;
+    my $self = {
+        type => shift,
+        sourceChip => shift,
+        destChip => shift,
+        calloutList => shift,
+    };
+
+    return bless $self, $class;
+}
+
+sub sourceChip
+{
+    my $self = shift;
+    return $self->{sourceChip};
+}
+
+sub destChip
+{
+    my $self = shift;
+    return $self->{destChip};
+}
+
+sub type
+{
+    my $self = shift;
+    return $self->{type};
+}
+
+sub calloutList
+{
+    my $self = shift;
+    return $self->{calloutList};
+}
+
+# I2CCallout object for I2C callouts
+package I2CCallout;
+our @ISA = qw(Callout);
+sub new
+{
+    my ($class) = @_;
+    # source, dest, calloutList
+    my $self = $class->SUPER::new("I2C", $_[1], $_[2], $_[3]);
+    $self->{i2cBus} = $_[4];
+    $self->{i2cAddr} = $_[5];
+    return bless $self, $class;
+}
+
+sub i2cBus
+{
+    my $self = shift;
+    return $self->{i2cBus};
+}
+
+sub i2cAddress
+{
+    my $self = shift;
+    return $self->{i2cAddr};
+}
+
+# FSICallout object for FSI callouts
+package FSICallout;
+our @ISA = qw(Callout);
+sub new
+{
+    my ($class) = @_;
+    my $self = $class->SUPER::new("FSI", $_[1], $_[2], $_[3]);
+    $self->{FSILink} = $_[4];
+    bless $self, $class;
+    return $self;
+}
+
+sub fsiLink
+{
+    my $self = shift;
+    return $self->{FSILink};
+}
+
+# SPICallout object for SPI callouts
+package SPICallout;
+our @ISA = qw(Callout);
+sub new
+{
+    my ($class) = @_;
+    my $self = $class->SUPER::new("SPI", $_[1], $_[2], $_[3]);
+    $self->{SPIBus} = $_[4];
+    bless $self, $class;
+    return $self;
+}
+
+sub spiBus
+{
+    my $self = shift;
+    return $self->{SPIBus};
+}
+
+package main;
+
 use mrw::Targets;
 use mrw::Util;
 use Getopt::Long;
@@ -80,6 +185,12 @@ $targets->loadXML($mrwFile);
 
 # Find all single segment buses that we care about
 my %allSegments = getPathSegments();
+
+my @callouts;
+
+# Build the single and multi segment callouts
+buildCallouts(\%allSegments, \@callouts);
+
 
 # Write the segments to a JSON file
 if ($printSegments)
@@ -269,6 +380,110 @@ sub getParentByClass
 
     return "";
 }
+
+# Build the callout objects
+sub buildCallouts
+{
+    my ($segments, $callouts) = @_;
+
+    # Callouts for 1 segment connections directly off of the BMC.
+    buildBMCSingleSegmentCallouts($segments, $callouts);
+}
+
+# Build the callout objects for devices 1 segment away.
+sub buildBMCSingleSegmentCallouts
+{
+    my ($segments, $callouts) = @_;
+
+    for my $busType (keys %$segments)
+    {
+        for my $segment (@{$$segments{$busType}})
+        {
+            my $chipType = $targets->getType($segment->{SourceChip});
+            if ($chipType eq "BMC")
+            {
+                my $callout = buildSingleSegmentCallout($segment);
+
+                if (defined $callout)
+                {
+                    push @{$callouts}, $callout;
+                }
+            }
+        }
+    }
+}
+
+# Build the callout object based on the callout type using the
+# callout list from the single segment.
+sub buildSingleSegmentCallout
+{
+    my ($segment, $callouts) = @_;
+
+    if ($segment->{BusType} eq "I2C")
+    {
+        return createI2CCallout($segment, $callouts);
+    }
+    elsif ($segment->{BusType} eq "FSIM")
+    {
+        return createFSICallout($segment, $callouts);
+    }
+    elsif ($segment->{BusType} eq "SPI")
+    {
+        return createSPICallout($segment, $callouts);
+    }
+
+    return undef;
+}
+
+# Create an I2CCallout object
+sub createI2CCallout
+{
+    my $segment = shift;
+    my $bus = $segment->{I2CBus};
+
+    # Convert MRW BMC I2C numbering to the linux one for the BMC
+    if ($targets->getAttribute($segment->{SourceChip}, "TYPE") eq "BMC")
+    {
+        $bus = Util::adjustI2CPort($segment->{I2CBus});
+
+        if ($bus < 0)
+        {
+            die "After adjusting BMC I2C bus $segment->{I2CBus}, " .
+                "got a negative number\n";
+        }
+    }
+
+    my $i2cCallout = new I2CCallout($segment->{SourceChip},
+        $segment->{DestChip}, $segment->{Callouts}, $bus,
+        $segment->{I2CAddress});
+
+    return $i2cCallout;
+}
+
+# Create an FSICallout object
+sub createFSICallout
+{
+    my $segment = shift;
+
+    my $fsiCallout = new FSICallout($segment->{SourceChip},
+        $segment->{DestChip}, $segment->{Callouts},
+        $segment->{FSILink}, $segment);
+
+    return $fsiCallout;
+}
+
+# Create a SPICallout object
+sub createSPICallout
+{
+    my $segment = shift;
+
+    my $spiCallout = new SPICallout($segment->{SourceChip},
+        $segment->{DestChip}, $segment->{Callouts},
+        $segment->{SPIBus});
+
+    return $spiCallout;
+}
+
 
 sub printUsage
 {
