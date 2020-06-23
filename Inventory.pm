@@ -13,7 +13,7 @@ my %RU_TYPES = (FRU => 1, CRU => 1);
 
 
 #CONNECTOR_TYPES of external connectors
-my % CONNECTOR_TYPES = (USB => 1, HMC => 1);
+my % CONNECTOR_TYPES = (USB => 1, HMC => 1, CXP => 1);
 
 #Chips that are modeled as modules (card-chip together)
 my %MODULE_TYPES = (PROC => 1, GPU => 1);
@@ -207,13 +207,15 @@ sub removeConnectors
         #Split the target into segments, then start
         #adding segments in to make new targets
         my @segments = split('/', $item->{TARGET});
+	my $seg_array_size = scalar @segments;
         my $target = "";
         for my $s (@segments) {
+	    $seg_array_size -= 1;
             next if (length($s) == 0);
 
             $target .= "/$s";
             my $class = $targetObj->getAttribute($target, "CLASS");
-            next unless ($class eq "CONNECTOR");
+            next unless ($class eq "CONNECTOR" and $seg_array_size ne 0);
 
             my ($segment) = $target =~ /\b(\w+-\d+)$/;
             my $pos = $targetObj->getAttribute($target, "POSITION");
