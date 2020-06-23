@@ -292,8 +292,6 @@ sub renameSegmentWithType
 #Removes the card portion of a module from OBMC_NAME.
 #For example, .../motherboard-0/module-1/proc-0 ->
 #.../motherboard-0/proc-1.
-#This needs to be revisited if multi-processor modules
-#ever come into plan.
 sub removeModuleFromPath
 {
     my ($targetObj, $inventory) = @_;
@@ -306,16 +304,57 @@ sub removeModuleFromPath
         }
     }
 
-    #Now convert module-A/name-B to name-A
-    #Note that the -B isn't always present
-    for my $item (@$inventory) {
+    #Finding the exponent
+    #For SCM, exponent is 1 ; For DCM, exponent is 2.
+    #Default value of exponent is 1.
 
-        for my $name (keys %chipNames) {
-            $item->{OBMC_NAME} =~ s/\w+-(\d+)\/$name(-\d+)*/$name-$1/;
+    my $factor = 1;
+    my $cardType = " ";
+
+    for my $item (@$inventory) {
+        my $parentTarget = $targetObj->getTargetParent($item->{TARGET});
+        if (defined($parentTarget)) {
+            my $class = $targetObj->getAttribute($parentTarget, "CLASS");
+            if ($class eq "CARD") {
+                $cardType = $targetObj->getAttribute($parentTarget, "CARD_TYPE");
+                if ($cardType eq "DCM-MODULE") {
+                    $factor = 2;
+                    last;
+                }
+            }
         }
     }
-}
+    #Finding the chip position & processor socket position.
+    #Chip position for SCM cards is zero.
 
+    my $chipPosition = 0;
+    my $procSockPosition = 0;
+    for my $item (@$inventory) {
+        my $type = $targetObj->getAttribute($item->{TARGET}, "TYPE");
+        if ($type eq "PROC") {
+            my $moduleTarget = $targetObj->getTargetParent($item->{TARGET});
+            my $procSocTarget = $targetObj->getTargetParent($moduleTarget);
+            my $procSocTargetPtr = $targetObj->getTarget($procSocTarget);
+            $procSockPosition = $procSocTargetPtr->{TARGET}->{position};
+        }
+        for my $name (keys %chipNames) {
+            if ($cardType eq "DCM-MODULE") {
+                my $targetPtr = $targetObj->getTarget($item->{TARGET});
+                my $chipClass = $targetObj->getAttribute($item->{TARGET}, "CLASS");
+                if($chipClass eq "CHIP") {
+                   $chipPosition = $targetPtr->{TARGET}->{position};
+                }
+            }
+
+	    #Now convert card-A/chip-B to chip-C,
+	    #where C = exponent * proc_socket_position + chip_position
+	    #Note that the -B isn't always present
+
+  	    $item->{OBMC_NAME} =~ s/\w+-(\d+)\/$name(-)*(\d+)*/$factor*$procSockPosition+$chipPosition/e;
+            $item->{OBMC_NAME} =~ s/\/(\d+)/\/$name-$1/;
+        }
+     }
+}
 
 #The same as renameSegmentWithType, but finds the segment
 #to rename by calling Targets::getTargetType() on it
