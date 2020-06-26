@@ -1,0 +1,9 @@
+Ok-To-Test+1: Jenkins <openbmc-ci-admin@ozlabs.org>
+Verified+1: Jenkins <openbmc-ci-admin@ozlabs.org>
+Code-Review+1: Vishwanatha Subbanna <vishwa@linux.vnet.ibm.com>
+Code-Review+2: Matt Spinler <spinler@us.ibm.com>
+Submitted-by: Matt Spinler <spinler@us.ibm.com>
+Submitted-at: Fri, 26 Jun 2020 13:08:32 +0000
+Reviewed-on: https://gerrit.openbmc-project.xyz/c/openbmc/phosphor-mrw-tools/+/31391
+Project: openbmc/phosphor-mrw-tools
+Branch: refs/heads/master
