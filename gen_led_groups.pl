@@ -327,7 +327,7 @@ sub generateJSONFile
     {
         my $class = shift;
         my $self = {
-            name => shift,
+            Name => shift,
             Action => shift,
             DutyOn => shift,
             Period => shift,
