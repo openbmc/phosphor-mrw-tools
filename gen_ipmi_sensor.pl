@@ -286,6 +286,9 @@ sub checkOccPathFixup
     if ("/system/chassis/motherboard/cpu0/occ" eq $path) {
         return "/org/open_power/control/occ0";
     }
+    if ("/system/chassis/motherboard/cpu/occ" eq $path) {
+        return "/org/open_power/control/occ0";
+    }
     if ("/system/chassis/motherboard/cpu1/occ" eq $path) {
         return "/org/open_power/control/occ1";
     }
