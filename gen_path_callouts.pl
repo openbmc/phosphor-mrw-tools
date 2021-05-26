@@ -835,6 +835,6 @@ sub printUsage
     print "$0 -m <MRW file> -o <Output filename> [--segments] [-n]\n" .
     "        -m <MRW file> = The MRW XML\n" .
     "        -o <Output filename> = The output JSON\n" .
-    "        [--segments] = Optionally create a segments.json file\n" .
+    "        [--segments] = Optionally create a segments.json file\n";
     exit(1);
 }
