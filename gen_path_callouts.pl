@@ -342,11 +342,30 @@ sub getPathSegments
 
             if ($busType eq "I2C")
             {
-                $segment{I2CBus} = $targets->getAttribute($target, "I2C_PORT");
+                # If the bus goes through a mux, then the I2C_BUS_ALIAS field
+                # will be filled in with the bus alias number.  For example
+                # 28 could be an alias for bus 5 mux channel 2.  Old parts may
+                # not have this attribute.  Note this is the actual alias value
+                # so doesn't need a 1 subtracted later, so account for that now.
+                #
+                if (isValidBusAttribute($target, $connIndex, "I2C_BUS_ALIAS"))
+                {
+                    $segment{I2CBus} = $targets->getBusAttribute(
+                        $target, $connIndex, "I2C_BUS_ALIAS");
+
+                    if ($segment{I2CBus} ne "")
+                    {
+                        $segment{I2CBus} = $segment{I2CBus} + 1;
+                    }
+                }
+
+                if ($segment{I2CBus} eq "")
+                {
+                    $segment{I2CBus} = $targets->getAttribute($target, "I2C_PORT");
+                }
+
                 $segment{I2CAddress} =
                     hex($targets->getAttribute($dest, "I2C_ADDRESS"));
-
-                $segment{I2CBus} = $segment{I2CBus};
 
                 # Convert to the 7 bit address that linux uses
                 $segment{I2CAddress} =
@@ -828,6 +847,22 @@ sub validatePriority
     }
 
     return $priority;
+}
+
+# Check if the attribute is present on the bus
+sub isValidBusAttribute
+{
+    my $target = shift;
+    my $connIndex = shift;
+    my $attr = shift;
+
+    if (defined($targets->getTarget($target)->
+            {CONNECTION}->{BUS}->[$connIndex]->{bus_attribute}->
+            {$attr}->{default}))
+    {
+        return 1;
+    }
+    return 0;
 }
 
 sub printUsage
