@@ -1,4 +1,4 @@
-#! /usr/bin/perl
+#!/usr/bin/perl
 
 # This script is used for generating callout lists from the MRW for devices
 # that can be accessed from the BMC.  The callouts have a location code, the
