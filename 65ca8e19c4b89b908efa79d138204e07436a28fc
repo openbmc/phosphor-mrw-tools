@@ -1,0 +1,7 @@
+Verified+1: OpenBMC CI <openbmcbump-ci@yahoo.com>
+Code-Review+2: Patrick Williams <patrick@stwcx.xyz>
+Submitted-by: Patrick Williams <patrick@stwcx.xyz>
+Submitted-at: Mon, 18 Jul 2022 14:42:42 +0000
+Reviewed-on: https://gerrit.openbmc.org/c/openbmc/phosphor-mrw-tools/+/55418
+Project: openbmc/phosphor-mrw-tools
+Branch: refs/heads/master
