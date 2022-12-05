@@ -98,24 +98,25 @@ top level element.
 """
 
 
-from lxml import etree
-import sys
 import argparse
+import sys
+
+from lxml import etree
 
 
 def delete_attrs(element, attrs):
     for a in attrs:
         try:
             del element.attrib[a]
-        except:
+        except Exception:
             pass
 
-if __name__ == '__main__':
 
+if __name__ == "__main__":
     parser = argparse.ArgumentParser("Applies fixes to XML files")
-    parser.add_argument("-x", dest='xml', help='The input XML file')
-    parser.add_argument("-p", dest='patch_xml', help='The patch XML file')
-    parser.add_argument("-o", dest='output_xml', help='The output XML file')
+    parser.add_argument("-x", dest="xml", help="The input XML file")
+    parser.add_argument("-p", dest="patch_xml", help="The patch XML file")
+    parser.add_argument("-o", dest="output_xml", help="The output XML file")
     args = parser.parse_args()
 
     if not all([args.xml, args.patch_xml, args.output_xml]):
@@ -130,16 +131,19 @@ if __name__ == '__main__':
     root = tree.getroot()
 
     for node in patch_root:
-        if (node.tag is etree.PI) or (node.tag is etree.Comment) or \
-           (node.tag == "targetFile"):
+        if (
+            (node.tag is etree.PI)
+            or (node.tag is etree.Comment)
+            or (node.tag == "targetFile")
+        ):
             continue
 
         patch_num = patch_num + 1
 
-        xpath = node.get('xpath', None)
-        patch_type = node.get('type', 'add')
-        patch_key = node.get('key', None)
-        delete_attrs(node, ['xpath', 'type', 'key'])
+        xpath = node.get("xpath", None)
+        patch_type = node.get("type", "add")
+        patch_key = node.get("key", None)
+        delete_attrs(node, ["xpath", "type", "key"])
 
         print("Patch " + str(patch_num) + ":")
 
@@ -153,70 +157,83 @@ if __name__ == '__main__':
                 raise Exception("  E>  Could not find XPath target " + xpath)
 
             if patch_type == "add":
-
                 print("  Adding element " + target.tag + " to " + xpath)
 
-                #The ServerWiz API is dependent on ordering for the
-                #elements at the root node, so make sure they get appended
-                #at the end.
+                # The ServerWiz API is dependent on ordering for the
+                # elements at the root node, so make sure they get appended
+                # at the end.
                 if (xpath == "./") or (xpath == "/"):
                     root.append(node)
                 else:
                     target.append(node)
 
             elif patch_type == "remove":
-
                 print("  Removing element " + xpath)
                 parent = target.find("..")
                 if parent is None:
-                    raise Exception("  E>  Could not find parent of " + xpath +
-                                    " so can't remove this element")
+                    raise Exception(
+                        "  E>  Could not find parent of "
+                        + xpath
+                        + " so can't remove this element"
+                    )
                 parent.remove(target)
 
             elif patch_type == "replace":
-
                 print("  Replacing element " + xpath)
                 parent = target.find("..")
                 if parent is None:
-                    raise Exception("  E>  Could not find parent of " + xpath +
-                                    " so can't replace this element")
+                    raise Exception(
+                        "  E>  Could not find parent of "
+                        + xpath
+                        + " so can't replace this element"
+                    )
                 parent.remove(target)
                 parent.append(node)
 
             elif patch_type == "add-child":
-
                 for child in node:
-                    print("  Adding a '" + child.tag + "' child element"
-                          " to " + xpath)
+                    print(
+                        "  Adding a '"
+                        + child.tag
+                        + "' child element to "
+                        + xpath
+                    )
                     target.append(child)
 
             elif patch_type == "replace-child":
-
                 if patch_key is None:
-                    raise Exception("  E>  Patch type is replace-child, but"
-                                    " 'key' attribute isn't set")
+                    raise Exception(
+                        "  E>  Patch type is replace-child, but"
+                        " 'key' attribute isn't set"
+                    )
                 updates = []
                 for child in node:
-                    #Use the key to figure out which element to replace
+                    # Use the key to figure out which element to replace
                     key_element = child.find(patch_key)
                     for target_child in target:
                         for grandchild in target_child:
-                            if (grandchild.tag == patch_key) and \
-                               (grandchild.text == key_element.text):
+                            if (grandchild.tag == patch_key) and (
+                                grandchild.text == key_element.text
+                            ):
                                 update = {}
-                                update['remove'] = target_child
-                                update['add'] = child
+                                update["remove"] = target_child
+                                update["add"] = child
                                 updates.append(update)
 
                 for update in updates:
-                    print("  Replacing a '" + update['remove'].tag +
-                          "' element in path " + xpath)
-                    target.remove(update['remove'])
-                    target.append(update['add'])
+                    print(
+                        "  Replacing a '"
+                        + update["remove"].tag
+                        + "' element in path "
+                        + xpath
+                    )
+                    target.remove(update["remove"])
+                    target.append(update["add"])
 
             else:
-                raise Exception("  E>  Unknown patch type attribute found:  " +
-                                patch_type)
+                raise Exception(
+                    "  E>  Unknown patch type attribute found:  " + patch_type
+                )
 
         except Exception as e:
             print(e)
