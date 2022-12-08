@@ -1,0 +1,7 @@
+Verified+1: OpenBMC CI <openbmcbump-ci@yahoo.com>
+Code-Review+2: Matt Spinler <spinler@us.ibm.com>
+Submitted-by: Matt Spinler <spinler@us.ibm.com>
+Submitted-at: Thu, 08 Dec 2022 16:54:03 +0000
+Reviewed-on: https://gerrit.openbmc.org/c/openbmc/phosphor-mrw-tools/+/59321
+Project: openbmc/phosphor-mrw-tools
+Branch: refs/heads/master
