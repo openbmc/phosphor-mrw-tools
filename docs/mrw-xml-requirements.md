@@ -16,10 +16,10 @@ like the BMC chip and processor cores.
 
 To specify a target in the MRW should be in the inventory:
 
-- Set the FRU_NAME attribute of that target.
+- Set the `FRU_NAME` attribute of that target.
 
 **Note**: The BMC and cores will be automatically added without the need to set
-FRU_NAME.
+`FRU_NAME`.
 
 ## BMC Device Tree
 
@@ -37,11 +37,11 @@ parts or pulled in from an include file.
 
 ### System Level Attributes
 
-##### SYSTEM_NAME
+#### `SYSTEM_NAME`
 
 The name of the system as the firmware would know it.
 
-##### MANUFACTURER
+#### MANUFACTURER
 
 The system manufacturer.
 
@@ -68,12 +68,12 @@ To enable a BMC MAC module, its ethernet master unit in the MRW must be
 connected to an ethernet slave unit. Additionally, the following attributes may
 need to be set.
 
-##### NCSI_MODE
+#### `NCSI_MODE`
 
 This attribute in the ethernet master unit can be set to 1 if the link uses
 NCSI. The default is 0.
 
-##### USE_HW_CHECKSUM
+#### `USE_HW_CHECKSUM`
 
 This attribute in the ethernet master unit can be set to 1 if the MAC has
 hardware checksum enabled, or 0 if not enabled. The default is 1.
@@ -90,7 +90,7 @@ LEDS will be listed in the device tree when LED parts in the MRW are wired to
 their GPIO master endpoints. The instance name in the MRW is the name of its
 node in the device tree.
 
-##### ON_STATE
+#### `ON_STATE`
 
 Set to the logic value required to activate the LED - either 0 or 1. The default
 is 0.
@@ -100,18 +100,18 @@ is 0.
 I2C devices are enabled by connecting the I2C master units in the BMC to the I2C
 slave units on the devices.
 
-##### I2C_ADDRESS
+#### `I2C_ADDRESS`
 
 The 8 bit hexadecimal I2C address should be set in the slave unit of the end
 device.
 
-##### BMC_DT_COMPATIBLE
+#### `BMC_DT_COMPATIBLE`
 
 When creating a new XML device model, this attribute should be used to specify
 which device driver the kernel will use to access the device. For example,
 `ti,423` or `bosch,bmp280`. For existing parts, this should already be set.
 
-##### BMC_DT_ATTR_NAMES
+#### `BMC_DT_ATTR_NAMES`
 
 This attribute is also only required when creating a new XML representation of
 an I2C device. It specifies which other attributes of the device should be
