@@ -220,6 +220,7 @@ use JSON;
 
 my $mrwFile = "";
 my $outFile = "";
+my $nonStrict = 0;
 my $printSegments = 0;
 
 # Not supporting priorites A, B, or C until necessary
@@ -231,6 +232,7 @@ my %busTypes = ( I2C => 1, FSIM => 1, FSICM => 1, SPI => 1 );
 GetOptions(
     "m=s" => \$mrwFile,
     "o=s" => \$outFile,
+    "n" => \$nonStrict,
     "segments" => \$printSegments
 )
     or printUsage();
@@ -303,7 +305,15 @@ sub getPathSegments
             $segment{SourceChip} = getParentByClass($target, "CHIP");
             if ($segment{SourceChip} eq "")
             {
-                die "Warning: Could not get parent chip for source $target\n";
+                if ($nonStrict)
+                {
+                    print "Warning: Could not get parent chip for source $target\n";
+                    next;
+                }
+                else
+                {
+                    die "Error: Could not get parent chip for source $target\n";
+                }
             }
 
             $segment{DestUnit} = $dest;
@@ -321,7 +331,15 @@ sub getPathSegments
 
             if ($segment{DestChip} eq "")
             {
-                die "Warning: Could not get parent chip for dest $dest\n";
+                if ($nonStrict)
+                {
+                    print "Warning: Could not get parent chip for dest $dest\n";
+                    next;
+                }
+                else
+                {
+                    die "Error: Could not get parent chip for dest $dest\n";
+                }
             }
 
             my $fruPath = $targets->getBusAttribute(
@@ -870,6 +888,7 @@ sub printUsage
     print "$0 -m <MRW file> -o <Output filename> [--segments] [-n]\n" .
     "        -m <MRW file> = The MRW XML\n" .
     "        -o <Output filename> = The output JSON\n" .
+    "        -n = Non-strict - Don't fail on some MRW structure problems\n" .
     "        [--segments] = Optionally create a segments.json file\n";
     exit(1);
 }
