@@ -5,7 +5,6 @@ Module::Build->new(
     dist_version => '1.0',
     license => 'perl',
     script_files => ['gen_callouts.pl',
-                     'gen_devtree.pl',
                      'gen_fan_zone_yaml.pl',
                      'gen_fru_properties.pl',
                      'gen_ipmi_fru.pl',
