@@ -223,7 +223,7 @@ my $outFile = "";
 my $nonStrict = 0;
 my $printSegments = 0;
 
-# Not supporting priorites A, B, or C until necessary
+# Not supporting priorities A, B, or C until necessary
 my %priorities = (H => 3, M => 2, L => 1);
 
 # Segment bus types
@@ -412,7 +412,7 @@ sub getPathSegments
     return %segments;
 }
 
-#Breaks the FRU_PATH atttribute up into its component callouts.
+#Breaks the FRU_PATH attribute up into its component callouts.
 #It looks like:  "H:<some target>,L:<some other target>(<MRU>)"
 #Where H/L are the priorities and can be H/M/L.
 #The MRU that is in parentheses is optional and is a chip name on that

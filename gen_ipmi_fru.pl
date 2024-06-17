@@ -132,7 +132,7 @@ sub getAllAssociatedTypes
    return @assoTypes;
 }
 
-#Get the metdata for the incoming frutype from the loaded config file.
+#Get the metadata for the incoming frutype from the loaded config file.
 #Write the FRU data into the output file
 
 sub writeToFile
